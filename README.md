@@ -1,4 +1,3 @@
-============
 django-htmx-base
 ============
 
@@ -12,16 +11,25 @@ Local Dist Quick start
 -----------
 
 1. Copy this package repository contents inside an existing django project
-    ``cp -r django-htmx-base target-project/django-htmx-base`` 
 
-2. Install the dist inside the target project
+   ```bash
+   cp -r django-htmx-base target-project/django-htmx-base
+   ``` 
+
+3. Install the dist inside the target project
     with pip:
-        ``python -m pip install --user django-htmx-base/dist/django_htmx_base.0.1.1.tar.gz``
+   
+	```bash
+   	python -m pip install --user django-htmx-base/dist/django_htmx_base.0.1.1.tar.gz
+   	```
     
-    with uv
-        ``uv add django-htmx-base/dist/django_htmx_base-0.1.1.tar.gz``
+    with uv:
 
-3. Add "django_htmx_base" to your INSTALLED_APPS setting like this:
+   	```bash
+	uv add django-htmx-base/dist/django_htmx_base-0.1.1.tar.gz
+    ```
+
+5. Add "django_htmx_base" to your INSTALLED_APPS setting like this:
     ```python
     INSTALLED_APPS = [
         ...,
@@ -29,7 +37,7 @@ Local Dist Quick start
     ]
     ```
 
-4. Import classes like "BaseModel" in your apps ´models.py´ file.
+7. Import classes like "BaseModel" in your apps ´models.py´ file.
     ```python
     # Django
     from django.db import models
@@ -50,5 +58,17 @@ Local Dist Quick start
         )
     ```
 
-5. Run ``python manage.py makemigrations`` and ``python manage.py migrate`` to create the models.
+8. In the target project make migrations and migrate.
 
+   ```bash
+   python manage.py makemigrations
+   ```
+   
+   ```bash
+   python manage.py migrate
+   ```
+
+9. Test by importing the models on a django shell
+   ```bash
+   python manage.py shell
+   ```
