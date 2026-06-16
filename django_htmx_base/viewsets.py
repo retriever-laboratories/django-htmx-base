@@ -44,6 +44,7 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
         "list": "_list",
         "detail": "_detail",
         "create": "_form",
+        "edit": "_form",
         "update": "_form",
         "delete": "_confirm_delete",
     }
@@ -334,13 +335,14 @@ class HtmxViewSet(GenericHtmxViewSet):
         },
         "post": {
             "create": "create",
+            "edit": "edit",
             "delete": "destroy",
         },
         "put": {
-            "edit": "edit_form",
+            "edit": "edit",
         },
         "patch": {
-            "edit": "edit_form",
+            "edit": "edit",
         },
         "delete": {
             "delete": "destroy",
