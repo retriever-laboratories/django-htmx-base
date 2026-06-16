@@ -45,7 +45,6 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
         "detail": "_detail",
         "create": "_form",
         "edit": "_form",
-        "update": "_form",
         "delete": "_confirm_delete",
     }
 
@@ -53,13 +52,15 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
     context_object_name = None
     context_object_list_name = None
 
-    # Dict of form classes for create, update, and delete actions.
-    # e.g. {"create": MyModelCreateForm, "update": MyModelUpdateForm, "delete": MyModelDeleteForm}
+    # Dict of form classes for create, edit, and delete actions.
+    # e.g. {"create": MyModelCreateForm, "edit": MyModelEditForm, "delete": MyModelDeleteForm}
+    form_class = None
     form_classes = None
+    fields = None
 
     # Actions types separation for context data handling
-    form_actions = {"create", "update", "delete"}
-    object_actions = {"detail", "update", "delete"}
+    form_actions = {"create", "edit", "delete"}
+    object_actions = {"detail", "edit", "delete"}
     list_actions = {"list"}
 
     def get_queryset(self):
