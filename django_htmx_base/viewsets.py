@@ -11,6 +11,7 @@ from django.views.generic.base import TemplateResponseMixin
 from django.views.generic.edit import ModelFormMixin
 from django.views.generic.list import MultipleObjectMixin
 
+
 class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMixin, View):
     """
     Viewset in charge of consolidating common logic for handling list and object retrieval, context data preparation,
@@ -25,7 +26,7 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
 
     """
 
-    # Current action being handled, e.g. "list", "detail", "create", "update", or "delete".
+    # Current action being handled, e.g. "list", "detail", "create", "edit", or "delete".
     action = None
 
     # Templates configuration.
@@ -151,7 +152,7 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
 
     def get_template_names(self):
         """
-        Consolidated template name retrieval that checks action-specific templates,
+        Consolidated template name retrieval that checks explicit templates,
         object-specific template fields, and model-based defaults.
         """
         if self.template_name is not None:
@@ -216,7 +217,7 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
 
     def get_form_kwargs(self):
         """
-        Add support for PATH and handle data serialization for non-POST methods in form processing.
+        Add support for PATCH and handle data serialization for non-POST methods in form processing.
         """
         kwargs = {
             "initial": self.get_initial(),
@@ -236,32 +237,12 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
 
         return kwargs
 
-    def _get_action_config(self, attr_name, default=None):
-        """Retrieve config values that can be defined globally or per action."""
-        value = getattr(self, attr_name, default)
-        if isinstance(value, dict):
-            return value.get(self.action, value.get("default", default))
-        return value
-
     def _normalize_template_names(self, names):
         if names is None:
             return []
         if isinstance(names, str):
             return [names]
         return list(names)
-
-    def _get_action_template_names(self):
-        if self.template_names is None:
-            return []
-
-        if isinstance(self.template_names, dict):
-            names = self.template_names.get(
-                self.action,
-                self.template_names.get("default"),
-            )
-            return self._normalize_template_names(names)
-
-        return []
 
     def _get_template_model(self):
         obj = getattr(self, "object", None)
@@ -299,7 +280,7 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
 
 class HtmxViewSet(GenericHtmxViewSet):
     """
-    A viewset in charge of implementing the standard CRUD actions (list, detail, create, update, delete)
+    A viewset in charge of implementing the standard CRUD actions (list, detail, create, edit, delete)
     with HTMX support and flexible configuration for templates, forms, and context data.
     It also is able to route HTTP methods and URL patterns to the appropriate action methods.
     """
