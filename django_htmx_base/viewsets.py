@@ -28,10 +28,6 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
     # Current action being handled, e.g. "list", "detail", "create", "update", or "delete".
     action = None
 
-    # Current object state set by action methods.
-    object = None
-    object_list = None
-
     # Templates configuration
     
     # A dict containing template names for each action
