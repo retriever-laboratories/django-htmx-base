@@ -28,14 +28,7 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
     # Current action being handled, e.g. "list", "detail", "create", "update", or "delete".
     action = None
 
-    # Templates configuration
-    
-    # A dict containing template names for each action
-    # e.g. {"list": "myapp/my_model_list.html", "detail": "myapp/my_model_detail.html"}
-    template_names = None 
-
-
-    template_name_field = None
+    # Templates configuration.
     template_name_suffixes = {
         "list": "_list",
         "detail": "_detail",
@@ -47,12 +40,6 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
     # Context names configuration for list and object
     context_object_name = None
     context_object_list_name = None
-
-    # Dict of form classes for create, edit, and delete actions.
-    # e.g. {"create": MyModelCreateForm, "edit": MyModelEditForm, "delete": MyModelDeleteForm}
-    form_class = None
-    form_classes = None
-    fields = None
 
     # Actions types separation for context data handling
     form_actions = {"create", "edit", "delete"}
@@ -89,16 +76,14 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
         Consolidated context object name retrieval for both list and object actions.
         """
         if obj is not None:
-            context_object_name = self._get_action_config("context_object_name")
-            if context_object_name:
-                return context_object_name
+            if self.context_object_name:
+                return self.context_object_name
             if isinstance(obj, models.Model):
                 return obj._meta.model_name
 
         if object_list is not None:
-            context_object_list_name = self._get_action_config("context_object_list_name")
-            if context_object_list_name:
-                return context_object_list_name
+            if self.context_object_list_name:
+                return self.context_object_list_name
             if hasattr(object_list, "model"):
                 return "%s_list" % object_list.model._meta.model_name
 
@@ -169,9 +154,10 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
         Consolidated template name retrieval that checks action-specific templates,
         object-specific template fields, and model-based defaults.
         """
-        names = self._get_action_template_names()
-        if names:
-            return names
+        if self.template_name is not None:
+            return self._normalize_template_names(self.template_name)
+
+        names = []
         
         if self.object is not None and self.template_name_field:
             name = getattr(self.object, self.template_name_field, None)
@@ -188,7 +174,7 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
 
         if not names:
             raise ImproperlyConfigured(
-                "%(cls)s requires template names. Define %(cls)s.template_names, "
+                "%(cls)s requires template names. Define %(cls)s.template_name, "
                 "%(cls)s.model, or override %(cls)s.get_template_names()."
                 % {"cls": self.__class__.__name__}
             )
@@ -197,14 +183,10 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
 
     def get_form_class(self):
         """
-        Consolidated form class retrieval for create, update, and delete actions.
+        Consolidated form class retrieval for create, edit, and delete actions.
         """
-        form_class = self._get_action_config("form_classes")
-        if form_class is not None:
-            return form_class
-
-        form_class = self._get_action_config("form_class")
-        fields = self._get_action_config("fields")
+        form_class = self.form_class
+        fields = self.fields
 
         if fields is not None and form_class:
             raise ImproperlyConfigured(
@@ -300,10 +282,9 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
         return None
 
     def _get_template_name_suffix(self):
-        suffix = self._get_action_config("template_name_suffixes")
-        if suffix is not None:
-            return suffix
-        return ""
+        if not self.template_name_suffixes:
+            return ""
+        return self.template_name_suffixes.get(self.action, "")
 
     def _get_request_data(self):
         if self.request.method == "POST":
