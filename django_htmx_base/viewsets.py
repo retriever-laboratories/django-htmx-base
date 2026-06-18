@@ -232,7 +232,10 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
                 }
             )
 
-        if hasattr(self, "object"):
+        if (
+            getattr(self, "object", None) is not None
+            and issubclass(self.get_form_class(), model_forms.ModelForm)
+        ):
             kwargs.update({"instance": self.object})
 
         return kwargs
