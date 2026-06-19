@@ -1,0 +1,122 @@
+from django.core.exceptions import ImproperlyConfigured
+from django.urls import path
+
+
+class Route:
+    def __init__(self, url, mapping, name, detail):
+        self.url = url
+        self.mapping = mapping
+        self.name = name
+        self.detail = detail
+
+
+class HtmxRouter:
+    """
+    Generate CRUD URL patterns for HtmxViewSet classes.
+    """
+
+    routes = [
+        Route(
+            url="",
+            mapping={"get": "list"},
+            name="list",
+            detail=False,
+        ),
+        Route(
+            url="create",
+            mapping={"get": "create_form", "post": "create"},
+            name="create",
+            detail=False,
+        ),
+        Route(
+            url="{pk}",
+            mapping={"get": "detail"},
+            name="detail",
+            detail=True,
+        ),
+        Route(
+            url="{pk}/edit",
+            mapping={
+                "get": "edit_form",
+                "post": "edit",
+                "put": "edit",
+                "patch": "edit",
+            },
+            name="edit",
+            detail=True,
+        ),
+        Route(
+            url="{pk}/delete",
+            mapping={"get": "delete_form", "post": "destroy", "delete": "destroy"},
+            name="delete",
+            detail=True,
+        ),
+    ]
+
+    def __init__(self):
+        self.registry = []
+
+    def register(self, prefix, viewset, basename=None):
+        if basename is None:
+            basename = self.get_default_basename(viewset)
+
+        self.registry.append((prefix.strip("/"), viewset, basename))
+
+    def get_default_basename(self, viewset):
+        model = getattr(viewset, "model", None)
+        if model is not None:
+            return model._meta.model_name
+
+        queryset = getattr(viewset, "queryset", None)
+        if queryset is not None and hasattr(queryset, "model"):
+            return queryset.model._meta.model_name
+
+        raise ImproperlyConfigured(
+            "%(cls)s is missing a basename. Pass basename=... to register(), "
+            "or define %(cls)s.model or %(cls)s.queryset."
+            % {"cls": viewset.__name__}
+        )
+
+    @property
+    def urls(self):
+        urls = []
+
+        for prefix, viewset, basename in self.registry:
+            pk = self.get_pk_path(viewset)
+
+            for route in self.routes:
+                mapping = self.get_method_map(viewset, route.mapping)
+                if not mapping:
+                    continue
+
+                route_url = route.url.format(pk=pk)
+                url = self.build_url(prefix, route_url)
+                view = viewset.as_view(
+                    mapping,
+                    basename=basename,
+                    route_detail=route.detail,
+                )
+                urls.append(path(url, view, name=route.name))
+
+        return urls
+
+    def get_pk_path(self, viewset):
+        pk_url_kwarg = getattr(viewset, "pk_url_kwarg", "pk")
+        return "<int:%s>" % pk_url_kwarg
+
+    def get_method_map(self, viewset, mapping):
+        return {
+            method: action
+            for method, action in mapping.items()
+            if hasattr(viewset, action)
+        }
+
+    def build_url(self, prefix, route_url):
+        if prefix and route_url:
+            url = f"{prefix}/{route_url}"
+        else:
+            url = prefix or route_url
+
+        if url:
+            return url + "/"
+        return ""
