@@ -1,3 +1,4 @@
+
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.db.models.query import QuerySet
@@ -279,63 +280,63 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
             return QueryDict(self.request.body, encoding=self.request.encoding)
 
         return QueryDict(encoding=self.request.encoding)
-    
+
 
 class HtmxViewSet(GenericHtmxViewSet):
     """
     A viewset in charge of implementing the standard CRUD actions (list, detail, create, edit, delete)
     with HTMX support and flexible configuration for templates, forms, and context data.
-    It also is able to route HTTP methods and URL patterns to the appropriate action methods.
+    The router maps HTTP methods to these action methods when building URL patterns.
     """
-    action_routes = {
-        "get": {
-            "list": "list",
-            "detail": "detail",
-            "create": "create_form",
-            "edit": "edit_form",
-            "delete": "delete_form",
-        },
-        "post": {
-            "create": "create",
-            "edit": "edit",
-            "delete": "destroy",
-        },
-        "put": {
-            "edit": "edit",
-        },
-        "patch": {
-            "edit": "edit",
-        },
-        "delete": {
-            "delete": "destroy",
-        },
-    }
 
-    def get(self, request, *args, **kwargs):
-        return self.route_action(request, *args, **kwargs)
+    @classmethod
+    def as_view(cls, actions=None, **initkwargs):
+        if actions is None:
+            raise TypeError(
+                "The actions argument must be provided when calling "
+                ".as_view() on a HtmxViewSet."
+            )
 
-    def post(self, request, *args, **kwargs):
-        return self.route_action(request, *args, **kwargs)
+        if not actions:
+            raise TypeError("The actions argument must not be empty.")
 
-    def put(self, request, *args, **kwargs):
-        return self.route_action(request, *args, **kwargs)
+        for method in actions:
+            if method.lower() not in cls.http_method_names:
+                raise TypeError(
+                    "%s() received an invalid HTTP method %r."
+                    % (cls.__name__, method)
+                )
 
-    def patch(self, request, *args, **kwargs):
-        return self.route_action(request, *args, **kwargs)
+        actions = {method.lower(): action for method, action in actions.items()}
 
-    def delete(self, request, *args, **kwargs):
-        return self.route_action(request, *args, **kwargs)
+        def view(request, *args, **kwargs):
+            self = cls(**initkwargs)
+            self.action_map = actions
 
-    def route_action(self, request, *args, **kwargs):
-        method = request.method.lower()
-        url_name = request.resolver_match.url_name
-        action_name = self.action_routes.get(method, {}).get(url_name)
+            for method, action in actions.items():
+                handler = getattr(self, action)
+                setattr(self, method, handler)
 
-        if action_name is None:
-            return self.http_method_not_allowed(request, *args, **kwargs)
+            self.setup(request, *args, **kwargs)
+            if not hasattr(self, "request"):
+                raise AttributeError(
+                    "%s instance has no 'request' attribute. Did you override "
+                    "setup() and forget to call super()?" % cls.__name__
+                )
+            return self.dispatch(request, *args, **kwargs)
 
-        action = getattr(self, action_name)
-        return action(request, *args, **kwargs)
+        view.view_class = cls
+        view.view_initkwargs = initkwargs
+        view.actions = actions
+
+        update_wrapper(view, cls, updated=())
+        update_wrapper(view, cls.dispatch, assigned=())
+        return view
+
+    def dispatch(self, request, *args, **kwargs):
+        if hasattr(self, "action_map"):
+            self.action = self.action_map.get(request.method.lower())
+        return super().dispatch(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
         self.action = "list"
