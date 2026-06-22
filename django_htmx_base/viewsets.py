@@ -1,3 +1,4 @@
+from functools import update_wrapper
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
