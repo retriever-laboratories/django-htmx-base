@@ -1,3 +1,4 @@
+from enum import StrEnum
 from functools import update_wrapper
 
 from django.core.exceptions import ImproperlyConfigured
@@ -11,6 +12,16 @@ from django.views.generic.base import ContextMixin
 from django.views.generic.base import TemplateResponseMixin
 from django.views.generic.edit import ModelFormMixin
 from django.views.generic.list import MultipleObjectMixin
+
+
+class HtmxAction(StrEnum):
+    LIST = "list"
+    DETAIL = "detail"
+    CREATE = "create"
+    EDIT = "edit"
+    DELETE = "delete"
+    DESTROY = "destroy"
+    FORM = "form"
 
 
 class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, View):
@@ -35,11 +46,11 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
     form_template_name = None
 
     template_name_suffixes = {
-        "list": "_list",
-        "detail": "_detail",
-        "create": "_form",
-        "edit": "_form",
-        "delete": "_confirm_delete",
+        HtmxAction.LIST: "_list",
+        HtmxAction.DETAIL: "_detail",
+        HtmxAction.CREATE: "_form",
+        HtmxAction.EDIT: "_form",
+        HtmxAction.DELETE: "_confirm_delete",
     }
 
     # Context names configuration for list and object
@@ -47,9 +58,9 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
     context_object_list_name = None
 
     # Actions types separation for context data handling
-    form_actions = {"create", "edit", "delete"}
-    object_actions = {"detail", "edit", "delete"}
-    list_actions = {"list"}
+    form_actions = {HtmxAction.CREATE, HtmxAction.EDIT, HtmxAction.DELETE}
+    object_actions = {HtmxAction.DETAIL, HtmxAction.EDIT, HtmxAction.DELETE}
+    list_actions = {HtmxAction.LIST}
 
     def get_context_object_name(self, object_list=None, obj=None):
         """
@@ -168,10 +179,10 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
         if self.action in self.list_actions:
             return self.list_template_name
 
-        if self.action in self.form_actions:
+        if self.action in {HtmxAction.CREATE, HtmxAction.EDIT}:
             return self.form_template_name
 
-        if self.action in self.object_actions:
+        if self.action == HtmxAction.DETAIL:
             return self.detail_template_name
 
         return self.template_name
@@ -180,7 +191,7 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
         """
         Consolidated form class retrieval for create, edit, and delete actions.
         """
-        if self.action == "delete":
+        if self.action == HtmxAction.DELETE:
             return Form
 
         return super().get_form_class()
@@ -302,24 +313,24 @@ class HtmxViewSet(GenericHtmxViewSet):
         return super().dispatch(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
-        self.action = "list"
+        self.action = HtmxAction.LIST
         self.object_list = self.get_queryset()
         context = self.get_context_data(object_list=self.object_list)
         return self.render_to_response(context)
 
     def detail(self, request, *args, **kwargs):
-        self.action = "detail"
+        self.action = HtmxAction.DETAIL
         self.object = self.get_object()
         context = self.get_context_data(obj=self.object)
         return self.render_to_response(context)
 
     def create(self, request, *args, **kwargs):
-        self.action = "create"
+        self.action = HtmxAction.CREATE
         self.object = None
         return self.process_form(request, *args, **kwargs)
 
     def edit(self, request, *args, **kwargs):
-        self.action = "edit"
+        self.action = HtmxAction.EDIT
         self.object = self.get_object()
         return self.process_form(request, *args, **kwargs)
 
@@ -332,7 +343,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         return self.render_form(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        self.action = "destroy"
+        self.action = HtmxAction.DESTROY
         self.object = self.get_object()
         success_url = self.get_success_url()
         self.object.delete()

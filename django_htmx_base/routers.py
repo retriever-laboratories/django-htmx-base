@@ -1,6 +1,8 @@
 from django.core.exceptions import ImproperlyConfigured
 from django.urls import path
 
+from django_htmx_base.viewsets import HtmxAction
+
 
 class Route:
     def __init__(self, url, mapping, name, detail):
@@ -18,37 +20,41 @@ class HtmxRouter:
     routes = [
         Route(
             url="",
-            mapping={"get": "list"},
-            name="list",
+            mapping={"get": HtmxAction.LIST},
+            name=HtmxAction.LIST,
             detail=False,
         ),
         Route(
-            url="create",
-            mapping={"get": "form", "post": "create"},
-            name="create",
+            url=HtmxAction.CREATE,
+            mapping={"get": HtmxAction.FORM, "post": HtmxAction.CREATE},
+            name=HtmxAction.CREATE,
             detail=False,
         ),
         Route(
             url="{pk}",
-            mapping={"get": "detail"},
-            name="detail",
+            mapping={"get": HtmxAction.DETAIL},
+            name=HtmxAction.DETAIL,
             detail=True,
         ),
         Route(
-            url="{pk}/edit",
+            url=f"{{pk}}/{HtmxAction.EDIT}",
             mapping={
-                "get": "form",
-                "post": "edit",
-                "put": "edit",
-                "patch": "edit",
+                "get": HtmxAction.FORM,
+                "post": HtmxAction.EDIT,
+                "put": HtmxAction.EDIT,
+                "patch": HtmxAction.EDIT,
             },
-            name="edit",
+            name=HtmxAction.EDIT,
             detail=True,
         ),
         Route(
-            url="{pk}/delete",
-            mapping={"get": "form", "post": "destroy", "delete": "destroy"},
-            name="delete",
+            url=f"{{pk}}/{HtmxAction.DELETE}",
+            mapping={
+                "get": HtmxAction.FORM,
+                "post": HtmxAction.DESTROY,
+                "delete": HtmxAction.DESTROY,
+            },
+            name=HtmxAction.DELETE,
             detail=True,
         ),
     ]
