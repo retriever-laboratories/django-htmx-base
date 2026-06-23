@@ -14,7 +14,7 @@ from django.views.generic.edit import ModelFormMixin
 from django.views.generic.list import MultipleObjectMixin
 
 
-class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMixin, View):
+class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, View):
     """
     Viewset in charge of consolidating common logic for handling list and object retrieval, context data preparation,
     template name resolution, and form processing for HTMX-based CRUD views.
@@ -48,31 +48,6 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
     form_actions = {"create", "edit", "delete"}
     object_actions = {"detail", "edit", "delete"}
     list_actions = {"list"}
-
-    def get_queryset(self):
-        """
-        Consolidated queryset retrieval for list and object actions.
-        """
-        if self.queryset is not None:
-            queryset = self.queryset
-            if isinstance(queryset, QuerySet):
-                queryset = queryset.all()
-        elif self.model is not None:
-            queryset = self.model._default_manager.all()
-        else:
-            raise ImproperlyConfigured(
-                "%(cls)s is missing a QuerySet. Define %(cls)s.model, "
-                "%(cls)s.queryset, or override %(cls)s.get_queryset()."
-                % {"cls": self.__class__.__name__}
-            )
-
-        ordering = self.get_ordering()
-        if ordering:
-            if isinstance(ordering, str):
-                ordering = (ordering,)
-            queryset = queryset.order_by(*ordering)
-
-        return queryset
 
     def get_context_object_name(self, object_list=None, obj=None):
         """
@@ -188,45 +163,18 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
         """
         Consolidated form class retrieval for create, edit, and delete actions.
         """
-        form_class = self.form_class
-        fields = self.fields
-
-        if fields is not None and form_class:
-            raise ImproperlyConfigured(
-                "Specifying both 'fields' and 'form_class' is not permitted."
-            )
-
-        if form_class:
-            return form_class
-
         if self.action == "delete":
             return Form
 
-        if self.model is not None:
-            model = self.model
-        elif getattr(self, "object", None) is not None:
-            model = self.object.__class__
-        else:
-            model = self.get_queryset().model
-
-        if fields is None:
-            raise ImproperlyConfigured(
-                "Using %(cls)s without the 'fields' attribute is prohibited."
-                % {"cls": self.__class__.__name__}
-            )
-
-        return model_forms.modelform_factory(model, fields=fields)
+        return super().get_form_class()
 
     def get_form_kwargs(self):
         """
         Add support for PATCH and handle data serialization for non-POST methods in form processing.
         """
-        kwargs = {
-            "initial": self.get_initial(),
-            "prefix": self.get_prefix(),
-        }
+        kwargs = super().get_form_kwargs()
 
-        if self.request.method in ("POST", "PUT", "PATCH"):
+        if self.request.method in ("PUT", "PATCH"):
             kwargs.update(
                 {
                     "data": self._get_request_data(),
@@ -234,11 +182,8 @@ class GenericHtmxViewSet(TemplateResponseMixin, ModelFormMixin, MultipleObjectMi
                 }
             )
 
-        if (
-            getattr(self, "object", None) is not None
-            and issubclass(self.get_form_class(), model_forms.ModelForm)
-        ):
-            kwargs.update({"instance": self.object})
+        if not issubclass(self.get_form_class(), model_forms.ModelForm):
+            kwargs.pop("instance", None)
 
         return kwargs
 
