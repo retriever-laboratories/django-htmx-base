@@ -79,8 +79,7 @@ class HtmxRouter:
 
         raise ImproperlyConfigured(
             "%(cls)s is missing a basename. Pass basename=... to register(), "
-            "or define %(cls)s.model or %(cls)s.queryset."
-            % {"cls": viewset.__name__}
+            "or define %(cls)s.model or %(cls)s.queryset." % {"cls": viewset.__name__}
         )
 
     @property

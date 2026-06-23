@@ -26,12 +26,16 @@ class HtmxAction(StrEnum):
     FORM = "form"
 
 
-class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, View):
+class GenericHtmxViewSet(
+    TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, View
+):
     """
-    Viewset in charge of consolidating common logic for handling list and object retrieval, context data preparation,
+    Viewset in charge of consolidating common logic
+    for handling list and object retrieval, context data preparation,
     template name resolution, and form processing for HTMX-based CRUD views.
 
-    Specifically, it overwrites and extends the following methods from the generic class-based views:
+    Specifically, it overwrites and extends the following methods
+    from the generic class-based views:
     - get_context_data
     - get_context_object_name
     - get_template_names
@@ -39,7 +43,7 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
 
     """
 
-    # Current action being handled, e.g. "list", "detail", "create", "edit", or "delete".
+    # Current action being handled
     action = None
 
     # Templates configuration.
@@ -128,7 +132,6 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
                 "page_obj": None,
                 "is_paginated": False,
                 "object_list": object_list,
-                
             }
 
         if context_object_name is not None:
@@ -200,7 +203,8 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
 
     def get_form_kwargs(self):
         """
-        Add support for PATCH and handle data serialization for non-POST methods in form processing.
+        Add support for PATCH and handle data serialization
+        for non-POST methods in form processing.
         """
         kwargs = super().get_form_kwargs()
 
@@ -223,9 +227,7 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
             return
 
         default_ordering = self._normalize_ordering(self.get_ordering())
-        self.ordering = self._dedupe_ordering(
-            ordering_params + default_ordering
-        )
+        self.ordering = self._dedupe_ordering(ordering_params + default_ordering)
 
     def filter_queryset(self, queryset, model):
         filtrable_fields = self._get_filtrable_fields(model)
@@ -351,7 +353,7 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
 
 class HtmxViewSet(GenericHtmxViewSet):
     """
-    A viewset in charge of implementing the standard CRUD actions (list, detail, create, edit, delete)
+    A viewset in charge of implementing the standard CRUD actions
     with HTMX support and flexible configuration for templates, forms, and context data.
     The router maps HTTP methods to these action methods when building URL patterns.
     """
@@ -370,8 +372,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         for method in actions:
             if method.lower() not in cls.http_method_names:
                 raise TypeError(
-                    "%s() received an invalid HTTP method %r."
-                    % (cls.__name__, method)
+                    "%s() received an invalid HTTP method %r." % (cls.__name__, method)
                 )
 
         actions = {method.lower(): action for method, action in actions.items()}
@@ -405,7 +406,7 @@ class HtmxViewSet(GenericHtmxViewSet):
             self.action = self.action_map.get(request.method.lower())
         return super().dispatch(request, *args, **kwargs)
 
-    def list(self, request, *args, **kwargs):
+    def list(self, request, *args, **kwargs):  # noqa: ARG002
         self.action = HtmxAction.LIST
         model = self._get_template_model()
         self.set_ordering(model)
@@ -413,23 +414,23 @@ class HtmxViewSet(GenericHtmxViewSet):
         context = self.get_context_data(object_list=self.object_list)
         return self.render_to_response(context)
 
-    def detail(self, request, *args, **kwargs):
+    def detail(self, request, *args, **kwargs):  # noqa: ARG002
         self.action = HtmxAction.DETAIL
         self.object = self.get_object()
         context = self.get_context_data(obj=self.object)
         return self.render_to_response(context)
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):  # noqa: ARG002
         self.action = HtmxAction.CREATE
         self.object = None
         return self.process_form(request, *args, **kwargs)
 
-    def edit(self, request, *args, **kwargs):
+    def edit(self, request, *args, **kwargs):  # noqa: ARG002
         self.action = HtmxAction.EDIT
         self.object = self.get_object()
         return self.process_form(request, *args, **kwargs)
 
-    def form(self, request, *args, **kwargs):
+    def form(self, request, *args, **kwargs):  # noqa: ARG002
         self.action = getattr(self, "route_action", self.action)
         if self.action in self.object_actions:
             self.object = self.get_object()
@@ -437,17 +438,17 @@ class HtmxViewSet(GenericHtmxViewSet):
             self.object = None
         return self.render_form(request, *args, **kwargs)
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request, *args, **kwargs):  # noqa: ARG002
         self.action = HtmxAction.DESTROY
         self.object = self.get_object()
         success_url = self.get_success_url()
         self.object.delete()
         return HttpResponseRedirect(success_url)
 
-    def render_form(self, request, *args, **kwargs):
+    def render_form(self, request, *args, **kwargs):  # noqa: ARG002
         return self.render_to_response(self.get_context_data())
 
-    def process_form(self, request, *args, **kwargs):
+    def process_form(self, request, *args, **kwargs):  # noqa: ARG002
         form = self.get_form()
         if form.is_valid():
             return self.form_valid(form)

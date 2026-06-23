@@ -39,3 +39,4 @@ classifiers = [
 
 [project.urls]
 Repository = "https://github.com/retriever-laboratories/django-htmx-base"
+[tool.ruff.lint.per-file-ignores]

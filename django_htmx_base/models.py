@@ -8,7 +8,7 @@ class FilterInputType(StrEnum):
     SELECT = "select"
 
 
-def BaseField(base_field_class, **kwargs):
+def BaseField(base_field_class, **kwargs):  # noqa: N802
 
     sortable = kwargs.pop("sortable", False)
     partial = kwargs.pop("partial", "default")
@@ -32,7 +32,10 @@ class BaseModel(models.Model):
     """
     Abstract base for all models
     """
-    created_at = BaseField(models.DateTimeField, auto_now_add=True, editable=False, sortable=True)
+
+    created_at = BaseField(
+        models.DateTimeField, auto_now_add=True, editable=False, sortable=True
+    )
     updated_at = BaseField(models.DateTimeField, auto_now=True, editable=False)
     is_active = BaseField(
         models.BooleanField,
@@ -48,21 +51,25 @@ class BaseModel(models.Model):
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(id={getattr(self, 'id', None)})"
-    
+
     @classmethod
-    def filtrable_fields(self):
+    def filtrable_fields(cls):
         """
         Returns the filter input type for each filtrable field.
         """
         return {
             field.name: field.filter_input_type
-            for field in self._meta.get_fields()
+            for field in cls._meta.get_fields()
             if getattr(field, "filtrable", False)
         }
 
     @classmethod
-    def sortable_fields(self):
+    def sortable_fields(cls):
         """
         Returns a list of fields that are sortable.
         """
-        return [field.name for field in self._meta.get_fields() if getattr(field, "sortable", False)]
+        return [
+            field.name
+            for field in cls._meta.get_fields()
+            if getattr(field, "sortable", False)
+        ]
