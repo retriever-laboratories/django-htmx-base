@@ -39,4 +39,23 @@ classifiers = [
 
 [project.urls]
 Repository = "https://github.com/retriever-laboratories/django-htmx-base"
+
+[dependency-groups]
+dev = [
+	"ruff>=0.13.0",
+]
+
+[tool.ruff.lint]
+# Go to https://docs.astral.sh/ruff/rules/ to see all the available rules.
+select = ["F", "E", "W", "I", "N", "C90", "ARG"]
+
 [tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/" = ["ARG001"]
+
+[tool.ruff.lint.isort]
+force-single-line = true
+known-first-party = ["django_htmx_base"]
+
+[tool.ruff.format]
+docstring-code-format = true
