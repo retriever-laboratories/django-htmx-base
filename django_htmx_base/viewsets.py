@@ -221,6 +221,21 @@ class GenericHtmxViewSet(
 
         return kwargs
 
+    def get_paginate_by(self, queryset):
+        page_size = self.request.GET.get("page_size")
+        if page_size is None:
+            return super().get_paginate_by(queryset)
+
+        try:
+            page_size = int(page_size)
+        except ValueError:
+            return super().get_paginate_by(queryset)
+
+        if page_size < 1:
+            return super().get_paginate_by(queryset)
+
+        return page_size
+
     def set_ordering(self, model):
         ordering_params = self._get_ordering_params(model)
         if not ordering_params:
@@ -237,7 +252,7 @@ class GenericHtmxViewSet(
         filters = {}
 
         for name, values in self.request.GET.lists():
-            if name in {"o", "page"} or name not in filtrable_fields:
+            if name in {"o", "page", "page_size"} or name not in filtrable_fields:
                 continue
 
             values = [value for value in values if value != ""]
