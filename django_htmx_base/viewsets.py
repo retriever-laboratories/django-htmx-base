@@ -13,6 +13,8 @@ from django.views.generic.base import TemplateResponseMixin
 from django.views.generic.edit import ModelFormMixin
 from django.views.generic.list import MultipleObjectMixin
 
+from django_htmx_base.models import FilterInputType
+
 
 class HtmxAction(StrEnum):
     LIST = "list"
@@ -215,12 +217,103 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
 
         return kwargs
 
+    def set_ordering(self, model):
+        ordering_params = self._get_ordering_params(model)
+        if not ordering_params:
+            return
+
+        default_ordering = self._normalize_ordering(self.get_ordering())
+        self.ordering = self._dedupe_ordering(
+            ordering_params + default_ordering
+        )
+
+    def filter_queryset(self, queryset, model):
+        filtrable_fields = self._get_filtrable_fields(model)
+        if not filtrable_fields:
+            return queryset
+
+        filters = {}
+
+        for name, values in self.request.GET.lists():
+            if name in {"o", "page"} or name not in filtrable_fields:
+                continue
+
+            values = [value for value in values if value != ""]
+            if not values:
+                continue
+
+            filter_input_type = filtrable_fields[name]
+            if filter_input_type == FilterInputType.TEXT:
+                filters[f"{name}__icontains"] = values[-1]
+            elif len(values) == 1:
+                filters[name] = values[0]
+            else:
+                filters[f"{name}__in"] = values
+
+        if filters:
+            return queryset.filter(**filters)
+
+        return queryset
+
     def _normalize_template_names(self, names):
         if names is None:
             return []
         if isinstance(names, str):
             return [names]
         return list(names)
+
+    def _normalize_ordering(self, ordering):
+        if not ordering:
+            return ()
+        if isinstance(ordering, str):
+            return (ordering,)
+        return tuple(ordering)
+
+    def _dedupe_ordering(self, ordering):
+        result = []
+        seen = set()
+
+        for value in ordering:
+            field_name = value.removeprefix("-")
+            if field_name in seen:
+                continue
+            seen.add(field_name)
+            result.append(value)
+
+        return tuple(result)
+
+    def _get_ordering_params(self, model):
+        sortable_fields = self._get_sortable_fields(model)
+        if not sortable_fields:
+            return ()
+
+        ordering = []
+
+        for value in self.request.GET.getlist("o"):
+            if not value:
+                continue
+
+            value = value.strip()
+            field_name = value.removeprefix("-")
+            if field_name in sortable_fields:
+                ordering.append(value)
+
+        return tuple(ordering)
+
+    def _get_sortable_fields(self, model):
+        if model is None or not hasattr(model, "sortable_fields"):
+            return set()
+
+        return set(model.sortable_fields())
+
+    def _get_filtrable_fields(self, model):
+        if model is None or not hasattr(model, "filtrable_fields"):
+            return {}
+
+        return {
+            name: FilterInputType(filter_input_type)
+            for name, filter_input_type in model.filtrable_fields().items()
+        }
 
     def _get_template_model(self):
         obj = getattr(self, "object", None)
@@ -314,7 +407,9 @@ class HtmxViewSet(GenericHtmxViewSet):
 
     def list(self, request, *args, **kwargs):
         self.action = HtmxAction.LIST
-        self.object_list = self.get_queryset()
+        model = self._get_template_model()
+        self.set_ordering(model)
+        self.object_list = self.filter_queryset(self.get_queryset(), model)
         context = self.get_context_data(object_list=self.object_list)
         return self.render_to_response(context)
 
