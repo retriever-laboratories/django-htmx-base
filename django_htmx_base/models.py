@@ -9,16 +9,15 @@ def BaseField(base_field_class, **kwargs):
     filtrable = kwargs.pop("filtrable", False)
     filter_input_type = kwargs.pop("filter_input_type", "text")
 
-    class CustomField(base_field_class):
-        def __init__(self, *args, **field_kwargs):
-            self.sortable = sortable
-            self.partial = partial
-            self.css_class = css_class
-            self.filtrable = filtrable
-            self.filter_input_type = filter_input_type
-            super().__init__(*args, **field_kwargs)
+    field = base_field_class(**kwargs)
+    field.sortable = sortable
+    field.partial = partial
+    field.css_class = css_class
+    field.filtrable = filtrable
+    field.filter_input_type = filter_input_type
 
-    return CustomField(**kwargs)       
+    return field
+
 class BaseModel(models.Model):
     """
     Abstract base for all models
