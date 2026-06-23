@@ -2,7 +2,6 @@ from functools import update_wrapper
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
-from django.db.models.query import QuerySet
 from django.forms import Form
 from django.forms import models as model_forms
 from django.http import HttpResponseRedirect
@@ -20,7 +19,6 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
     template name resolution, and form processing for HTMX-based CRUD views.
 
     Specifically, it overwrites and extends the following methods from the generic class-based views:
-    - get_queryset
     - get_context_data
     - get_context_object_name
     - get_template_names
@@ -32,6 +30,10 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
     action = None
 
     # Templates configuration.
+    list_template_name = None
+    detail_template_name = None
+    form_template_name = None
+
     template_name_suffixes = {
         "list": "_list",
         "detail": "_detail",
@@ -113,6 +115,7 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
                 "page_obj": None,
                 "is_paginated": False,
                 "object_list": object_list,
+                
             }
 
         if context_object_name is not None:
@@ -132,13 +135,15 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
         Consolidated template name retrieval that checks explicit templates,
         object-specific template fields, and model-based defaults.
         """
-        if self.template_name is not None:
-            return self._normalize_template_names(self.template_name)
+        template_name = self._get_action_template_name()
+        if template_name is not None:
+            return self._normalize_template_names(template_name)
 
         names = []
-        
-        if self.object is not None and self.template_name_field:
-            name = getattr(self.object, self.template_name_field, None)
+
+        template_name_field = getattr(self, "template_name_field", None)
+        if self.object is not None and template_name_field:
+            name = getattr(self.object, template_name_field, None)
             if name:
                 names.insert(0, name)
 
@@ -158,6 +163,18 @@ class GenericHtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMi
             )
 
         return names
+
+    def _get_action_template_name(self):
+        if self.action in self.list_actions:
+            return self.list_template_name
+
+        if self.action in self.form_actions:
+            return self.form_template_name
+
+        if self.action in self.object_actions:
+            return self.detail_template_name
+
+        return self.template_name
 
     def get_form_class(self):
         """
@@ -296,29 +313,22 @@ class HtmxViewSet(GenericHtmxViewSet):
         context = self.get_context_data(obj=self.object)
         return self.render_to_response(context)
 
-    def create_form(self, request, *args, **kwargs):
-        self.action = "create"
-        self.object = None
-        return self.render_form(request, *args, **kwargs)
-
     def create(self, request, *args, **kwargs):
         self.action = "create"
         self.object = None
         return self.process_form(request, *args, **kwargs)
-
-    def edit_form(self, request, *args, **kwargs):
-        self.action = "edit"
-        self.object = self.get_object()
-        return self.render_form(request, *args, **kwargs)
 
     def edit(self, request, *args, **kwargs):
         self.action = "edit"
         self.object = self.get_object()
         return self.process_form(request, *args, **kwargs)
 
-    def delete_form(self, request, *args, **kwargs):
-        self.action = "delete"
-        self.object = self.get_object()
+    def form(self, request, *args, **kwargs):
+        self.action = getattr(self, "route_action", self.action)
+        if self.action in self.object_actions:
+            self.object = self.get_object()
+        else:
+            self.object = None
         return self.render_form(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):

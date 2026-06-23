@@ -24,7 +24,7 @@ class HtmxRouter:
         ),
         Route(
             url="create",
-            mapping={"get": "create_form", "post": "create"},
+            mapping={"get": "form", "post": "create"},
             name="create",
             detail=False,
         ),
@@ -37,7 +37,7 @@ class HtmxRouter:
         Route(
             url="{pk}/edit",
             mapping={
-                "get": "edit_form",
+                "get": "form",
                 "post": "edit",
                 "put": "edit",
                 "patch": "edit",
@@ -47,7 +47,7 @@ class HtmxRouter:
         ),
         Route(
             url="{pk}/delete",
-            mapping={"get": "delete_form", "post": "destroy", "delete": "destroy"},
+            mapping={"get": "form", "post": "destroy", "delete": "destroy"},
             name="delete",
             detail=True,
         ),
@@ -95,6 +95,7 @@ class HtmxRouter:
                     mapping,
                     basename=basename,
                     route_detail=route.detail,
+                    route_action=route.name,
                 )
                 urls.append(path(url, view, name=route.name))
 
