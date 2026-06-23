@@ -1,7 +1,12 @@
 from enum import StrEnum
+
 from django.db import models
 
+
+class FilterInputType(StrEnum):
     TEXT = "text"
+    SELECT = "select"
+
 
 def BaseField(base_field_class, **kwargs):
 
@@ -35,11 +40,11 @@ class BaseModel(models.Model):
         filtrable=True,
         filter_input_type=FilterInputType.SELECT,
     )
+    display_fields = ("id", "created_at", "is_active")
 
     class Meta:
         abstract = True
         ordering = ("-created_at",)
-        display_fields = ("id", "created_at", "is_active")
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(id={getattr(self, 'id', None)})"
