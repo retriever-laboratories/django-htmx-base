@@ -1,5 +1,7 @@
+from enum import StrEnum
 from django.db import models
 
+    TEXT = "text"
 
 def BaseField(base_field_class, **kwargs):
 
@@ -7,7 +9,9 @@ def BaseField(base_field_class, **kwargs):
     partial = kwargs.pop("partial", "default")
     css_class = kwargs.pop("css_class", "")
     filtrable = kwargs.pop("filtrable", False)
-    filter_input_type = kwargs.pop("filter_input_type", "text")
+    filter_input_type = FilterInputType(
+        kwargs.pop("filter_input_type", FilterInputType.TEXT)
+    )
 
     field = base_field_class(**kwargs)
     field.sortable = sortable
@@ -18,13 +22,19 @@ def BaseField(base_field_class, **kwargs):
 
     return field
 
+
 class BaseModel(models.Model):
     """
     Abstract base for all models
     """
-    created_at = BaseField(models.DateTimeField, auto_now_add=True, editable=False, sortable=True, partial="datetime", css_class="created-at")
-    updated_at = models.DateTimeField(auto_now=True)
-    is_active = models.BooleanField(default=True)
+    created_at = BaseField(models.DateTimeField, auto_now_add=True, editable=False, sortable=True)
+    updated_at = BaseField(models.DateTimeField, auto_now=True, editable=False)
+    is_active = BaseField(
+        models.BooleanField,
+        default=True,
+        filtrable=True,
+        filter_input_type=FilterInputType.SELECT,
+    )
 
     class Meta:
         abstract = True
@@ -37,6 +47,17 @@ class BaseModel(models.Model):
     @classmethod
     def filtrable_fields(self):
         """
-        Returns a list of fields that are filtrable
+        Returns the filter input type for each filtrable field.
         """
-        return [field.name for field in self._meta.get_fields() if getattr(field, "filtrable", False)]
+        return {
+            field.name: field.filter_input_type
+            for field in self._meta.get_fields()
+            if getattr(field, "filtrable", False)
+        }
+
+    @classmethod
+    def sortable_fields(self):
+        """
+        Returns a list of fields that are sortable.
+        """
+        return [field.name for field in self._meta.get_fields() if getattr(field, "sortable", False)]
