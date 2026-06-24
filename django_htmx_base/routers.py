@@ -89,7 +89,7 @@ class HtmxRouter:
         for prefix, viewset, basename in self.registry:
             pk = self.get_pk_path(viewset)
 
-            for route in self.routes:
+            for route in self.get_routes(viewset):
                 mapping = self.get_method_map(viewset, route.mapping)
                 if not mapping:
                     continue
@@ -105,6 +105,31 @@ class HtmxRouter:
                 urls.append(path(url, view, name=route.name))
 
         return urls
+
+    def get_routes(self, viewset):
+        return [*self.routes, *self.get_extra_routes(viewset)]
+
+    def get_extra_routes(self, viewset):
+        if not hasattr(viewset, "get_extra_actions"):
+            return []
+
+        routes = []
+
+        for extra_action in viewset.get_extra_actions():
+            url = extra_action.url_path
+            if extra_action.detail:
+                url = "{pk}/%s" % url
+
+            routes.append(
+                Route(
+                    url=url,
+                    mapping=extra_action.mapping,
+                    name=extra_action.url_name,
+                    detail=extra_action.detail,
+                )
+            )
+
+        return routes
 
     def get_pk_path(self, viewset):
         pk_url_kwarg = getattr(viewset, "pk_url_kwarg", "pk")

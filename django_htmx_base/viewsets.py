@@ -1,3 +1,4 @@
+import inspect
 from enum import StrEnum
 from functools import update_wrapper
 
@@ -14,6 +15,34 @@ from django.views.generic.edit import ModelFormMixin
 from django.views.generic.list import MultipleObjectMixin
 
 from django_htmx_base.models import FilterInputType
+
+
+def action(methods=None, detail=None, url_path=None, url_name=None):
+    if detail is None:
+        raise TypeError("The detail argument must be provided.")
+
+    if not isinstance(detail, bool):
+        raise TypeError("The detail argument must be True or False.")
+
+    if methods is None:
+        methods = ["get"]
+    elif isinstance(methods, str):
+        methods = [methods]
+
+    if not methods:
+        raise TypeError("The methods argument must not be empty.")
+
+    methods = [method.lower() for method in methods]
+
+    def decorator(func):
+        func.mapping = {method: func.__name__ for method in methods}
+        func.detail = detail
+        func.url_path = url_path or func.__name__
+        func.url_name = url_name or func.__name__
+        func.is_custom_action = True
+        return func
+
+    return decorator
 
 
 class HtmxAction(StrEnum):
@@ -389,6 +418,14 @@ class HtmxViewSet(GenericHtmxViewSet):
     with HTMX support and flexible configuration for templates, forms, and context data.
     The router maps HTTP methods to these action methods when building URL patterns.
     """
+
+    @classmethod
+    def get_extra_actions(cls):
+        return [
+            method
+            for _, method in inspect.getmembers(cls, predicate=callable)
+            if getattr(method, "is_custom_action", False)
+        ]
 
     @classmethod
     def as_view(cls, actions=None, **initkwargs):
