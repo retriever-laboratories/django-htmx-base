@@ -86,6 +86,10 @@ class BaseModel(models.Model):
 
         return filters
 
+    @property
+    def filters(self):
+        return self.filtrable_fields()
+
     @classmethod
     def sortable_fields(cls):
         """
@@ -104,6 +108,10 @@ class BaseModel(models.Model):
             for field in cls._meta.get_fields()
             if field.name in cls.display_fields
         ]
+
+    @property
+    def columns(self):
+        return self.table_columns()
 
     @classmethod
     def _get_table_column(cls, field):
