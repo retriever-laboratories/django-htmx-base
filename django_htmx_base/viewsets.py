@@ -252,6 +252,9 @@ class GenericHtmxViewSet(
 
         return kwargs
 
+    def is_htmx(self):
+        return self.request.headers.get("HX-Request") == "true"
+
     def get_paginate_by(self, queryset):
         page_size = self.request.GET.get("page_size")
         if page_size is None:
