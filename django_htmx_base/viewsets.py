@@ -166,7 +166,6 @@ class GenericHtmxViewSet(
 
         if context_object_name is not None:
             context[context_object_name] = object_list
-        context.update(self.get_list_metadata_context())
         return context
 
     def get_object_context_data(self, obj):
@@ -194,7 +193,7 @@ class GenericHtmxViewSet(
             if name:
                 names.insert(0, name)
 
-        model = self._get_template_model()
+        model = self._get_model()
         if model is not None:
             opts = model._meta
             names.append(
@@ -270,28 +269,12 @@ class GenericHtmxViewSet(
 
         return page_size
 
-    def get_list_metadata_context(self):
-        model = self._get_template_model()
-        context = {
-            "model": model,
-            "page_size_options": list(self.page_size_options),
-        }
-
-        if model is not None and hasattr(model, "table_columns"):
-            context["table"] = {"columns": model.table_columns()}
-
-        if model is not None and hasattr(model, "filtrable_fields"):
-            context["filters"] = model.filtrable_fields()
-
-        return context
-
     def set_ordering(self, model):
         ordering_params = self._get_ordering_params(model)
         if not ordering_params:
             return
 
-        default_ordering = self._normalize_ordering(self.get_ordering())
-        self.ordering = self._dedupe_ordering(ordering_params + default_ordering)
+        self.ordering = self._normalize_ordering(self.get_ordering())
 
     def filter_queryset(self, queryset, model):
         filtrable_fields = self._get_filtrable_fields(model)
@@ -335,19 +318,6 @@ class GenericHtmxViewSet(
             return (ordering,)
         return tuple(ordering)
 
-    def _dedupe_ordering(self, ordering):
-        result = []
-        seen = set()
-
-        for value in ordering:
-            field_name = value.removeprefix("-")
-            if field_name in seen:
-                continue
-            seen.add(field_name)
-            result.append(value)
-
-        return tuple(result)
-
     def _get_ordering_params(self, model):
         sortable_fields = self._get_sortable_fields(model)
         if not sortable_fields:
@@ -381,7 +351,7 @@ class GenericHtmxViewSet(
             for filter_config in model.filtrable_fields()
         }
 
-    def _get_template_model(self):
+    def _get_model(self):
         obj = getattr(self, "object", None)
         if obj is not None and hasattr(obj, "_meta"):
             return obj.__class__
@@ -480,7 +450,7 @@ class HtmxViewSet(GenericHtmxViewSet):
 
     def list(self, request, *args, **kwargs):  # noqa: ARG002
         self.action = HtmxAction.LIST
-        model = self._get_template_model()
+        model = self._get_model()
         self.set_ordering(model)
         self.object_list = self.filter_queryset(self.get_queryset(), model)
         context = self.get_context_data(object_list=self.object_list)
