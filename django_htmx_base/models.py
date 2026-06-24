@@ -11,7 +11,7 @@ class FilterInputType(StrEnum):
 def BaseField(base_field_class, **kwargs):  # noqa: N802
 
     sortable = kwargs.pop("sortable", False)
-    partial = kwargs.pop("partial", "default")
+    partial = kwargs.pop("partial", None)
     css_class = kwargs.pop("css_class", "")
     filtrable = kwargs.pop("filtrable", False)
     filter_input_type = FilterInputType(
