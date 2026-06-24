@@ -67,6 +67,7 @@ class GenericHtmxViewSet(
     form_actions = {HtmxAction.CREATE, HtmxAction.EDIT, HtmxAction.DELETE}
     object_actions = {HtmxAction.DETAIL, HtmxAction.EDIT, HtmxAction.DELETE}
     list_actions = {HtmxAction.LIST}
+    page_size_options = (10, 50, 100)
 
     def get_context_object_name(self, object_list=None, obj=None):
         """
@@ -136,6 +137,7 @@ class GenericHtmxViewSet(
 
         if context_object_name is not None:
             context[context_object_name] = object_list
+        context.update(self.get_list_metadata_context())
         return context
 
     def get_object_context_data(self, obj):
@@ -236,6 +238,21 @@ class GenericHtmxViewSet(
 
         return page_size
 
+    def get_list_metadata_context(self):
+        model = self._get_template_model()
+        context = {
+            "model": model,
+            "page_size_options": list(self.page_size_options),
+        }
+
+        if model is not None and hasattr(model, "table_columns"):
+            context["table"] = {"columns": model.table_columns()}
+
+        if model is not None and hasattr(model, "filtrable_fields"):
+            context["filters"] = model.filtrable_fields()
+
+        return context
+
     def set_ordering(self, model):
         ordering_params = self._get_ordering_params(model)
         if not ordering_params:
@@ -328,8 +345,8 @@ class GenericHtmxViewSet(
             return {}
 
         return {
-            name: FilterInputType(filter_input_type)
-            for name, filter_input_type in model.filtrable_fields().items()
+            filter_config["field"]: FilterInputType(filter_config["filter_input_type"])
+            for filter_config in model.filtrable_fields()
         }
 
     def _get_template_model(self):

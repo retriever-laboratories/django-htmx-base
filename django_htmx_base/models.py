@@ -55,13 +55,36 @@ class BaseModel(models.Model):
     @classmethod
     def filtrable_fields(cls):
         """
-        Returns the filter input type for each filtrable field.
+        Returns context-ready filter metadata for each filtrable field.
         """
-        return {
-            field.name: field.filter_input_type
-            for field in cls._meta.get_fields()
-            if getattr(field, "filtrable", False)
-        }
+        filters = []
+
+        for field in cls._meta.get_fields():
+            if not getattr(field, "filtrable", False):
+                continue
+
+            filter_config = {
+                "field": field.name,
+                "filter_input_type": getattr(
+                    field, "filter_input_type", FilterInputType.TEXT
+                ).value,
+            }
+
+            if field.choices:
+                filter_config["options"] = [
+                    {"value": value, "label": label}
+                    for value, label in field.choices
+                    if value not in (None, "")
+                ]
+            elif isinstance(field, models.BooleanField):
+                filter_config["options"] = [
+                    {"value": "True", "label": "True"},
+                    {"value": "False", "label": "False"},
+                ]
+
+            filters.append(filter_config)
+
+        return filters
 
     @classmethod
     def sortable_fields(cls):
@@ -73,3 +96,29 @@ class BaseModel(models.Model):
             for field in cls._meta.get_fields()
             if getattr(field, "sortable", False)
         ]
+
+    @classmethod
+    def table_columns(cls):
+        return [
+            cls._get_table_column(field)
+            for field in cls._meta.get_fields()
+            if field.name in cls.display_fields
+        ]
+
+    @classmethod
+    def _get_table_column(cls, field):
+        column = {
+            "field": field.name,
+            "sortable": getattr(field, "sortable", False),
+            "filtrable": getattr(field, "filtrable", False),
+        }
+
+        partial = getattr(field, "partial", None)
+        if partial:
+            column["partial"] = partial
+
+        css_class = getattr(field, "css_class", None)
+        if css_class:
+            column["class"] = css_class
+
+        return column
