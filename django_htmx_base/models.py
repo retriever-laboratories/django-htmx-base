@@ -104,14 +104,40 @@ class BaseModel(models.Model):
     @classmethod
     def table_columns(cls):
         return [
-            cls._get_table_column(field)
-            for field in cls._meta.get_fields()
-            if field.name in cls.display_fields
+            cls._get_table_column(cls._meta.get_field(field_name))
+            for field_name in cls.display_fields
         ]
 
     @property
     def columns(self):
         return self.table_columns()
+
+    @property
+    def row(self):
+        """Ordered cells for this instance, matching ``display_fields`` order."""
+        cells = []
+
+        for field_name in self.display_fields:
+            field = self._meta.get_field(field_name)
+
+            if field.choices:
+                value = getattr(self, f"get_{field_name}_display")()
+            else:
+                value = getattr(self, field_name)
+
+            if not value:
+                value = "-"
+
+            cells.append(
+                {
+                    "field": field_name,
+                    "value": value,
+                    "partial": getattr(field, "partial", None),
+                    "class": getattr(field, "css_class", ""),
+                }
+            )
+
+        return cells
 
     @classmethod
     def _get_table_column(cls, field):
