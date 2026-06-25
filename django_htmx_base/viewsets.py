@@ -164,6 +164,8 @@ class GenericHtmxViewSet(
                 "object_list": object_list,
             }
 
+        context["model"] = self._get_model()
+
         if context_object_name is not None:
             context[context_object_name] = object_list
         return context
