@@ -7,6 +7,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.forms import Form
 from django.forms import models as model_forms
+from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.http import QueryDict
 from django.views.generic import View
@@ -479,3 +480,20 @@ class HtmxViewSet(GenericHtmxViewSet):
         if form.is_valid():
             return self.form_valid(form)
         return self.form_invalid(form)
+
+    @action(methods=["get"], detail=False)
+    def download(self, request, *args, **kwargs):  # noqa: ARG002
+
+        queryset = self.get_queryset()
+        model = self._get_model()
+
+        if not hasattr(model, "downloadable") or not model.downloadable:
+            raise ImproperlyConfigured(
+                f"{model.__name__} does not support downloading. "
+                "Ensure the model has a 'downloadable' attribute set to True."
+            )
+
+        csv_content = model.to_csv(queryset)
+        response = HttpResponse(csv_content, content_type="text/csv")
+        response["Content-Disposition"] = f'attachment; filename="{model.__name__}.csv"'
+        return response
