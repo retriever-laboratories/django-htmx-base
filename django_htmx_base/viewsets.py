@@ -107,6 +107,8 @@ class GenericHtmxViewSet(
 
         queryset = super().get_queryset()
         return self.filter_queryset(queryset, self._get_model())
+
+    def get_context_object_name(self, queryset=None, obj=None):
         """
         Consolidated context object name retrieval for both list and object actions.
         """
@@ -116,23 +118,23 @@ class GenericHtmxViewSet(
             if isinstance(obj, models.Model):
                 return obj._meta.model_name
 
-        if object_list is not None:
+        if queryset is not None:
             if self.context_object_list_name:
                 return self.context_object_list_name
-            if hasattr(object_list, "model"):
-                return "%s_list" % object_list.model._meta.model_name
+            if hasattr(queryset, "model"):
+                return "%s_list" % queryset.model._meta.model_name
 
         return None
 
-    def get_context_data(self, object_list=None, obj=None, **kwargs):
+    def get_context_data(self, queryset=None, obj=None, **kwargs):
         """
         Consolidated context data preparation for the different action types
         """
         context = {}
 
         if self.action in self.list_actions:
-            object_list = object_list if object_list is not None else self.object_list
-            if object_list is not None:
+            object_list = queryset if queryset is not None else self.get_queryset()
+            if object_list:
                 context.update(self.get_list_context_data(object_list))
 
         if self.action in self.object_actions:
@@ -146,36 +148,39 @@ class GenericHtmxViewSet(
         context.update(kwargs)
         return ContextMixin.get_context_data(self, **context)
 
-    def get_list_context_data(self, object_list):
+    def get_list_context_data(self, queryset=None):
         """
         Set context variables for list actions, including pagination if applicable.
         """
-        page_size = self.get_paginate_by(object_list)
-        context_object_name = self.get_context_object_name(object_list=object_list)
+        if not queryset:
+            queryset = self.queryset
+
+        page_size = self.get_paginate_by()
+        context_object_name = self.get_context_object_name(queryset=queryset)
 
         if page_size:
-            paginator, page, object_list, is_paginated = self.paginate_queryset(
-                object_list,
+            paginator, page, queryset, is_paginated = self.paginate_queryset(
+                queryset,
                 page_size,
             )
             context = {
                 "paginator": paginator,
                 "page_obj": page,
                 "is_paginated": is_paginated,
-                "object_list": object_list,
+                "object_list": queryset,
             }
         else:
             context = {
                 "paginator": None,
                 "page_obj": None,
                 "is_paginated": False,
-                "object_list": object_list,
+                "object_list": queryset,
             }
 
         context["model"] = self._get_model()
 
         if context_object_name is not None:
-            context[context_object_name] = object_list
+            context[context_object_name] = queryset
         return context
 
     def get_object_context_data(self, obj):
