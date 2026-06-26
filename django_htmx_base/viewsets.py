@@ -103,6 +103,10 @@ class GenericHtmxViewSet(
 
     paginate_by = settings.PAGINATE_BY if hasattr(settings, "PAGINATE_BY") else None
 
+    def get_queryset(self):
+
+        queryset = super().get_queryset()
+        return self.filter_queryset(queryset, self._get_model())
         """
         Consolidated context object name retrieval for both list and object actions.
         """
@@ -270,22 +274,26 @@ class GenericHtmxViewSet(
             return queryset
 
         filters = {}
+        restricted_params = {"o", "page", "page_size"}
 
-        for name, values in self.request.GET.lists():
-            if name in {"o", "page", "page_size"} or name not in filtrable_fields:
-                continue
+        filters_params = [
+            param
+            for param in self.request.GET.lists()
+            if param[0] not in restricted_params and param[0] in filtrable_fields
+        ]
 
-            values = [value for value in values if value != ""]
+        for filter_param, values in filters_params:
+            values = [value for value in values if value]
             if not values:
                 continue
 
-            filter_input_type = filtrable_fields[name]
+            filter_input_type = filtrable_fields[filter_param]
             if filter_input_type == FilterInputType.TEXT:
-                filters[f"{name}__icontains"] = values[-1]
+                filters[f"{filter_param}__icontains"] = values[-1]
             elif len(values) == 1:
-                filters[name] = values[0]
+                filters[filter_param] = values[0]
             else:
-                filters[f"{name}__in"] = values
+                filters[f"{filter_param}__in"] = values
 
         if filters:
             return queryset.filter(**filters)
@@ -319,7 +327,7 @@ class GenericHtmxViewSet(
             return {}
 
         return {
-            filter_config["field"]: FilterInputType(filter_config["filter_input_type"])
+            filter_config["field"]: filter_config["filter_input_type"]
             for filter_config in model.filtrable_fields()
         }
 
