@@ -74,7 +74,7 @@ class GenericHtmxViewSet(
     """
 
     object = None
-    
+
     # Current action being handled
     action = None
 
