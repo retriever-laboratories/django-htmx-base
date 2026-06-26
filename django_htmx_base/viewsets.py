@@ -74,6 +74,7 @@ class GenericHtmxViewSet(
     """
 
     object = None
+    
     # Current action being handled
     action = None
 
@@ -298,30 +299,14 @@ class GenericHtmxViewSet(
             return [names]
         return list(names)
 
-    def _normalize_ordering(self, ordering):
-        if not ordering:
-            return ()
-        if isinstance(ordering, str):
-            return (ordering,)
-        return tuple(ordering)
-
     def _get_ordering_params(self, model):
         sortable_fields = self._get_sortable_fields(model)
         if not sortable_fields:
             return ()
 
-        ordering = []
-
-        for value in self.request.GET.getlist("o"):
-            if not value:
-                continue
-
-            value = value.strip()
-            field_name = value.removeprefix("-")
-            if field_name in sortable_fields:
-                ordering.append(value)
-
-        return tuple(ordering)
+        ordering_list = self.request.GET.getlist("o")
+        ordering = [x for x in ordering_list if x]
+        return [x for x in ordering if x.lstrip("-") in sortable_fields]
 
     def _get_sortable_fields(self, model):
         if model is None or not hasattr(model, "sortable_fields"):
@@ -438,9 +423,8 @@ class HtmxViewSet(GenericHtmxViewSet):
     def list(self, request, *args, **kwargs):  # noqa: ARG002
         self.action = HtmxAction.LIST
         model = self._get_model()
-        self.set_ordering(model)
-        self.object_list = self.filter_queryset(self.get_queryset(), model)
-        context = self.get_context_data(object_list=self.object_list)
+        self.ordering = self._get_ordering_params(model)
+        context = self.get_context_data()
         return self.render_to_response(context)
 
     def detail(self, request, *args, **kwargs):  # noqa: ARG002
