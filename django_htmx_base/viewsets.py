@@ -2,6 +2,7 @@ import inspect
 from enum import StrEnum
 from functools import update_wrapper
 
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.forms import Form
@@ -72,6 +73,7 @@ class GenericHtmxViewSet(
 
     """
 
+    object = None
     # Current action being handled
     action = None
 
@@ -98,7 +100,8 @@ class GenericHtmxViewSet(
     list_actions = {HtmxAction.LIST}
     page_size_options = (10, 50, 100)
 
-    def get_context_object_name(self, object_list=None, obj=None):
+    paginate_by = settings.PAGINATE_BY if hasattr(settings, "PAGINATE_BY") else None
+
         """
         Consolidated context object name retrieval for both list and object actions.
         """
@@ -256,27 +259,9 @@ class GenericHtmxViewSet(
     def is_htmx(self):
         return self.request.headers.get("HX-Request") == "true"
 
-    def get_paginate_by(self, queryset):
-        page_size = self.request.GET.get("page_size")
-        if page_size is None:
-            return super().get_paginate_by(queryset)
-
-        try:
-            page_size = int(page_size)
-        except ValueError:
-            return super().get_paginate_by(queryset)
-
-        if page_size < 1:
-            return super().get_paginate_by(queryset)
-
-        return page_size
-
-    def set_ordering(self, model):
-        ordering_params = self._get_ordering_params(model)
-        if not ordering_params:
-            return
-
-        self.ordering = self._normalize_ordering(self.get_ordering())
+    def get_paginate_by(self):
+        self.paginate_by = self.request.GET.get("page_size", self.paginate_by)
+        return self.paginate_by
 
     def filter_queryset(self, queryset, model):
         filtrable_fields = self._get_filtrable_fields(model)
