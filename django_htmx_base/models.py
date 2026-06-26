@@ -1,4 +1,6 @@
+import csv
 from enum import StrEnum
+from io import StringIO
 
 from django.db import models
 
@@ -44,6 +46,7 @@ class BaseModel(models.Model):
         filter_input_type=FilterInputType.SELECT,
     )
     display_fields = ("id", "created_at", "is_active")
+    downloadable = True
 
     class Meta:
         abstract = True
@@ -138,6 +141,18 @@ class BaseModel(models.Model):
             )
 
         return cells
+
+    @classmethod
+    def to_csv(cls, queryset):
+        output = StringIO(newline="")
+        writer = csv.writer(output)
+        writer.writerow(cls.display_fields)
+
+        fields = [field_name for field_name in cls.display_fields]
+        for instance in list(queryset):
+            writer.writerow([getattr(instance, field) for field in fields])
+
+        return output.getvalue()
 
     @classmethod
     def _get_table_column(cls, field):
