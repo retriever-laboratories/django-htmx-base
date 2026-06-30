@@ -19,7 +19,6 @@ class FilterInputType(StrEnum):
 
 
 def BaseField(base_field_class, **kwargs):  # noqa: N802
-
     sortable = kwargs.pop("sortable", False)
     partial = kwargs.pop("partial", None)
     css_class = kwargs.pop("css_class", "")
@@ -169,9 +168,8 @@ class BaseModel(models.Model):
         writer = csv.writer(output)
         writer.writerow(cls.display_fields)
 
-        fields = [field_name for field_name in cls.display_fields]
-        for instance in list(queryset):
-            writer.writerow([getattr(instance, field) for field in fields])
+        for object in queryset:
+            writer.writerow(object.as_list())
 
         return output.getvalue()
 
@@ -197,3 +195,7 @@ class BaseModel(models.Model):
             columns.append(column)
 
         return columns
+
+    @property
+    def downloadable(self):
+        return self._downloadable
