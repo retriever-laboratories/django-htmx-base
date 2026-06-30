@@ -1,7 +1,9 @@
+# standard
 import inspect
 from enum import StrEnum
 from functools import update_wrapper
 
+# django
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
@@ -16,6 +18,7 @@ from django.views.generic.base import TemplateResponseMixin
 from django.views.generic.edit import ModelFormMixin
 from django.views.generic.list import MultipleObjectMixin
 
+# models
 from django_htmx_base.models import FilterInputType
 
 
