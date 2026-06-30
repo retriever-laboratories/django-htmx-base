@@ -66,16 +66,17 @@ class BaseModel(models.Model):
         return f"{self.__class__.__name__}(id={getattr(self, 'id', None)})"
 
     @classmethod
-    def filtrable_fields(cls):
+    def get_filtrable_fields(cls):
         """
         Returns context-ready filter metadata for each filtrable field.
         """
+        return [field for field in cls._meta.get_fields() if field.filtrable]
+
+    @classmethod
+    def get_filters_object(cls):
         filters = []
 
-        for field in cls._meta.get_fields():
-            if not getattr(field, "filtrable", False):
-                continue
-
+        for field in cls.get_filtrable_fields():
             filter_config = {
                 "field": field.name,
                 "filter_input_type": getattr(
@@ -101,7 +102,11 @@ class BaseModel(models.Model):
 
     @property
     def filters(self):
-        return self.filtrable_fields()
+        return self.get_filtrable_fields()
+
+    @property
+    def filters_objects(self):
+        return self.get_filters_object()
 
     @classmethod
     def sortable_fields(cls):
