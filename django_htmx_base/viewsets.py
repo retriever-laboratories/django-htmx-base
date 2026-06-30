@@ -71,16 +71,34 @@ class GenericHtmxViewSet(
     Specifically, it overwrites and extends the following methods
     from the generic class-based views:
     - get_context_data
-    - get_context_object_name
+    - get_model_name
     - get_template_names
     - get_form_class and get_form_kwargs
 
     """
 
+    allow_empty = True
+    content_type = None
+    model_name = None
+    fields = None
+    form_class = None
+    initial = {}
+    model = None
     object = None
-
-    # Current action being handled
-    action = None
+    ordering = None
+    page_kwarg = "page"
+    paginate_by = None
+    paginate_orphans = 0
+    paginator_class = Paginator
+    pk_url_kwarg = "pk"
+    prefix = None
+    query_pk_and_slug = False
+    queryset = None
+    response_class = TemplateResponse
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
+    success_url = None
+    template_engine = None
 
     # Templates configuration.
     list_template_name = None
