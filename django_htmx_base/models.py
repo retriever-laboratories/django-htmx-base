@@ -141,30 +141,27 @@ class BaseModel(models.Model):
 
         return values
 
+    @property
+    def as_field_values_objects_list(self):
         """Ordered cells for this instance, matching ``display_fields`` order."""
-        cells = []
+        field_objects = []
 
-        for field_name in self.display_fields:
-            field = self._meta.get_field(field_name)
-
-            if field.choices:
-                value = getattr(self, f"get_{field_name}_display")()
+        for field in self.display_fields:
+            if getattr(field, "choices", None):
+                value = getattr(self, f"get_{field.name}_display")()
             else:
-                value = getattr(self, field_name)
+                value = getattr(self, field.name)
 
-            if not value:
-                value = "-"
-
-            cells.append(
+            field_objects.append(
                 {
-                    "field": field_name,
+                    "field": field.name,
                     "value": value,
                     "partial": getattr(field, "partial", None),
                     "class": getattr(field, "css_class", ""),
                 }
             )
 
-        return cells
+        return field_objects
 
     @classmethod
     def to_csv(cls, queryset):
