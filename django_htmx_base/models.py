@@ -116,15 +116,16 @@ class BaseModel(models.Model):
         return [field.name for field in cls._meta.get_fields() if field.sortable]
 
     @classmethod
-    def table_columns(cls):
+    def get_display_fields(cls):
         return [
-            cls._get_table_column(cls._meta.get_field(field_name))
-            for field_name in cls.display_fields
+            field
+            for field in cls._meta.get_fields()
+            if field.name in cls._display_fields
         ]
 
     @property
-    def columns(self):
-        return self.table_columns()
+    def display_fields(self):
+        return self.get_display_fields()
 
     @property
     def row(self):
