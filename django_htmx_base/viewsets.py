@@ -104,7 +104,6 @@ class GenericHtmxViewSet(
     list_template_name = None
     detail_template_name = None
     form_template_name = None
-
     template_name_suffixes = {
         HtmxAction.LIST: "_list",
         HtmxAction.DETAIL: "_detail",
@@ -124,21 +123,19 @@ class GenericHtmxViewSet(
 
     # Pagination config
     page_size_options = (10, 50, 100)
-
     paginate_by = settings.PAGINATE_BY if hasattr(settings, "PAGINATE_BY") else None
 
     def get_queryset(self):
-
         queryset = super().get_queryset()
         return self.filter_queryset(queryset, self._get_model())
 
-    def get_context_object_name(self, queryset=None, obj=None):
+    def get_model_name(self, queryset=None, obj=None):
         """
         Consolidated context object name retrieval for both list and object actions.
         """
         if obj is not None:
-            if self.context_object_name:
-                return self.context_object_name
+            if self.model_name:
+                return self.model_name
             if isinstance(obj, models.Model):
                 return obj._meta.model_name
 
@@ -180,7 +177,7 @@ class GenericHtmxViewSet(
             queryset = self.queryset
 
         page_size = self.get_paginate_by()
-        context_object_name = self.get_context_object_name(queryset=queryset)
+        model_name = self.get_model_name(queryset=queryset)
 
         if page_size:
             paginator, page, queryset, is_paginated = self.paginate_queryset(
@@ -203,16 +200,16 @@ class GenericHtmxViewSet(
 
         context["model"] = self._get_model()
 
-        if context_object_name is not None:
-            context[context_object_name] = queryset
+        if model_name is not None:
+            context[model_name] = queryset
         return context
 
     def get_object_context_data(self, obj):
         """Set context variables for single object actions."""
         context = {"object": obj}
-        context_object_name = self.get_context_object_name(obj=obj)
-        if context_object_name:
-            context[context_object_name] = obj
+        model_name = self.get_model_name(obj=obj)
+        if model_name:
+            context[model_name] = obj
         return context
 
     def get_template_names(self):
