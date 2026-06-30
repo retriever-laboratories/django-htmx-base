@@ -449,19 +449,42 @@ class HtmxViewSet(GenericHtmxViewSet):
                     "%s instance has no 'request' attribute. Did you override "
                     "setup() and forget to call super()?" % cls.__name__
                 )
+
             return self.dispatch(request, *args, **kwargs)
 
         view.view_class = cls
         view.view_initkwargs = initkwargs
         view.actions = actions
 
+        cls.object_actions.update(
+            {
+                action
+                for action in actions.values()
+                if getattr(getattr(cls, action), "detail")
+            }
+        )
+
+        cls.list_actions.update(
+            {
+                action
+                for action in actions.values()
+                if not getattr(getattr(cls, action), "detail")
+            }
+        )
+
         update_wrapper(view, cls, updated=())
         update_wrapper(view, cls.dispatch, assigned=())
         return view
 
     def dispatch(self, request, *args, **kwargs):
+        self.model = self._get_model()
         if hasattr(self, "action_map"):
             self.action = self.action_map.get(request.method.lower())
+
+        if self.action in self.object_actions:
+            self.object = self.get_object()
+
+        self.context = self.get_context_data(obj=self.object, **kwargs)
         return super().dispatch(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):  # noqa: ARG002
