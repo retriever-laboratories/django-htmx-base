@@ -1,7 +1,9 @@
+# standard
 import csv
 from enum import StrEnum
 from io import StringIO
 
+# django
 from django.db import models
 
 
