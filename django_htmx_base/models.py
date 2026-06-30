@@ -43,6 +43,7 @@ class BaseModel(models.Model):
     Abstract base for all models
     """
 
+    # Fields
     created_at = BaseField(
         models.DateTimeField, auto_now_add=True, editable=False, sortable=True
     )
@@ -53,8 +54,9 @@ class BaseModel(models.Model):
         filtrable=True,
         filter_input_type=FilterInputType.SELECT,
     )
-    display_fields = ("id", "created_at", "is_active")
-    downloadable = True
+    # View attributes
+    _display_fields = ("id", "created_at", "is_active")
+    _downloadable = True
 
     class Meta:
         abstract = True
