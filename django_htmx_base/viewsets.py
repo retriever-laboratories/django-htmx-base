@@ -6,12 +6,16 @@ from functools import update_wrapper
 # django
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.core.paginator import Paginator
 from django.db import models
 from django.forms import Form
 from django.forms import models as model_forms
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.http import QueryDict
+from django.shortcuts import render
+from django.template.response import TemplateResponse
+from django.urls import reverse
 from django.views.generic import View
 from django.views.generic.base import ContextMixin
 from django.views.generic.base import TemplateResponseMixin
@@ -159,12 +163,14 @@ class GenericHtmxViewSet(
                 context.update(self.get_list_context_data(object_list))
 
         if self.action in self.object_actions:
-            obj = obj if obj is not None else self.object
-            if obj is not None:
+            if not obj:
+                obj = self.object or self.get_object()
+
+            if obj and obj is not None:
                 context.update(self.get_object_context_data(obj))
 
         if self.action in self.form_actions and "form" not in kwargs:
-            kwargs["form"] = self.get_form()
+            context.update({"form": self.get_form()})
 
         context.update(kwargs)
         return ContextMixin.get_context_data(self, **context)
@@ -487,48 +493,29 @@ class HtmxViewSet(GenericHtmxViewSet):
         self.context = self.get_context_data(obj=self.object, **kwargs)
         return super().dispatch(request, *args, **kwargs)
 
-    def list(self, request, *args, **kwargs):  # noqa: ARG002
-        self.action = HtmxAction.LIST
-        model = self._get_model()
-        self.ordering = self._get_ordering_params(model)
+    def list(self):
+        self.ordering = self._get_ordering_params(self.model)
         context = self.get_context_data()
         return self.render_to_response(context)
 
-    def detail(self, request, *args, **kwargs):  # noqa: ARG002
-        self.action = HtmxAction.DETAIL
-        self.object = self.get_object()
-        context = self.get_context_data(obj=self.object)
-        return self.render_to_response(context)
+    def detail(self):
+        return self.render_to_response(self.context)
 
-    def create(self, request, *args, **kwargs):  # noqa: ARG002
-        self.action = HtmxAction.CREATE
-        self.object = None
+    def create(self, request, *args, **kwargs):
+        if request.method == "get":
+            return self.render_to_response(self.get_context_data())
+        elif request.method == "post":
+            return self.process_form(request, *args, **kwargs)
+
+    def edit(self, request, *args, **kwargs):
         return self.process_form(request, *args, **kwargs)
 
-    def edit(self, request, *args, **kwargs):  # noqa: ARG002
-        self.action = HtmxAction.EDIT
-        self.object = self.get_object()
-        return self.process_form(request, *args, **kwargs)
-
-    def form(self, request, *args, **kwargs):  # noqa: ARG002
-        self.action = getattr(self, "route_action", self.action)
-        if self.action in self.object_actions:
-            self.object = self.get_object()
-        else:
-            self.object = None
-        return self.render_form(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):  # noqa: ARG002
-        self.action = HtmxAction.DESTROY
-        self.object = self.get_object()
+    def destroy(self):
         success_url = self.get_success_url()
         self.object.delete()
         return HttpResponseRedirect(success_url)
 
-    def render_form(self, request, *args, **kwargs):  # noqa: ARG002
-        return self.render_to_response(self.get_context_data())
-
-    def process_form(self, request, *args, **kwargs):  # noqa: ARG002
+    def process_form(self):
         form = self.get_form()
         if form.is_valid():
             return self.form_valid(form)
