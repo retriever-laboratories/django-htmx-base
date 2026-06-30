@@ -176,19 +176,24 @@ class BaseModel(models.Model):
         return output.getvalue()
 
     @classmethod
-    def _get_table_column(cls, field):
-        column = {
-            "field": field.name,
-            "sortable": getattr(field, "sortable", False),
-            "filtrable": getattr(field, "filtrable", False),
-        }
+    def _as_field_names_objects_list(cls):
+        columns = []
 
-        partial = getattr(field, "partial", None)
-        if partial:
-            column["partial"] = partial
+        for field in cls.get_display_fields():
+            column = {
+                "field": field.name,
+                "sortable": getattr(field, "sortable", False),
+                "filtrable": getattr(field, "filtrable", False),
+            }
 
-        css_class = getattr(field, "css_class", None)
-        if css_class:
-            column["class"] = css_class
+            partial = getattr(field, "partial", None)
+            if partial:
+                column["partial"] = partial
 
-        return column
+            css_class = getattr(field, "css_class", None)
+            if css_class:
+                column["class"] = css_class
+
+            columns.append(column)
+
+        return columns
