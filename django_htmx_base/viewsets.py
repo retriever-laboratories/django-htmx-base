@@ -114,13 +114,15 @@ class GenericHtmxViewSet(
     }
 
     # Context names configuration for list and object
-    context_object_name = None
+    model_name = None
     context_object_list_name = None
 
     # Actions types separation for context data handling
-    form_actions = {HtmxAction.CREATE, HtmxAction.EDIT, HtmxAction.DELETE}
-    object_actions = {HtmxAction.DETAIL, HtmxAction.EDIT, HtmxAction.DELETE}
     list_actions = {HtmxAction.LIST}
+    object_actions = {HtmxAction.DETAIL, HtmxAction.EDIT, HtmxAction.DELETE}
+    form_actions = object_actions | {HtmxAction.CREATE}
+
+    # Pagination config
     page_size_options = (10, 50, 100)
 
     paginate_by = settings.PAGINATE_BY if hasattr(settings, "PAGINATE_BY") else None
