@@ -26,7 +26,7 @@ class HtmxRouter:
         ),
         Route(
             url=HtmxAction.CREATE,
-            mapping={"get": HtmxAction.FORM, "post": HtmxAction.CREATE},
+            mapping={"get": HtmxAction.CREATE, "post": HtmxAction.CREATE},
             name=HtmxAction.CREATE,
             detail=False,
         ),
@@ -39,7 +39,7 @@ class HtmxRouter:
         Route(
             url=f"{{pk}}/{HtmxAction.EDIT}",
             mapping={
-                "get": HtmxAction.FORM,
+                "get": HtmxAction.CREATE,
                 "post": HtmxAction.EDIT,
                 "put": HtmxAction.EDIT,
                 "patch": HtmxAction.EDIT,
@@ -50,7 +50,7 @@ class HtmxRouter:
         Route(
             url=f"{{pk}}/{HtmxAction.DELETE}",
             mapping={
-                "get": HtmxAction.FORM,
+                "get": HtmxAction.CREATEs,
                 "post": HtmxAction.DESTROY,
                 "delete": HtmxAction.DESTROY,
             },
