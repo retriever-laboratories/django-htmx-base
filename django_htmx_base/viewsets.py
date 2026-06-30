@@ -522,15 +522,16 @@ class HtmxViewSet(GenericHtmxViewSet):
         return self.form_invalid(form)
 
     @action(methods=["get"], detail=False)
-    def download(self, request, *args, **kwargs):  # noqa: ARG002
+    def download(self, request):
 
         queryset = self.get_queryset()
         model = self._get_model()
 
         if not hasattr(model, "downloadable") or not model.downloadable:
-            raise ImproperlyConfigured(
-                f"{model.__name__} does not support downloading. "
-                "Ensure the model has a 'downloadable' attribute set to True."
+            return render(
+                request,
+                "Downloading not allowed.",
+                status=403,
             )
 
         csv_content = model.to_csv(queryset)
