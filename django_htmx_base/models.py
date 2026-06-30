@@ -113,11 +113,7 @@ class BaseModel(models.Model):
         """
         Returns a list of fields that are sortable.
         """
-        return [
-            field.name
-            for field in cls._meta.get_fields()
-            if getattr(field, "sortable", False)
-        ]
+        return [field.name for field in cls._meta.get_fields() if field.sortable]
 
     @classmethod
     def table_columns(cls):
