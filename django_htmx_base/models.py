@@ -6,8 +6,16 @@ from django.db import models
 
 
 class FilterInputType(StrEnum):
-    TEXT = "text"
+    CHECKBOX = "checkbox"
+    DATE = "date"
+    DATETIME_LOCAL = "datetime-local"
+    MULTISELECT = "multiselect"
+    NUMBER = "number"
+    RADIO = "radio"
+    RANGE = "range"
     SELECT = "select"
+    TEXT = "text"
+    TIME = "time"
 
 
 def BaseField(base_field_class, **kwargs):  # noqa: N802
