@@ -128,7 +128,19 @@ class BaseModel(models.Model):
         return self.get_display_fields()
 
     @property
-    def row(self):
+    def as_list(self):
+        """Ordered values for this instance, matching ``display_fields`` order."""
+        values = []
+        for field in self.display_fields:
+            if getattr(field, "choices", None):
+                value = getattr(self, f"get_{field.name}_display")()
+            else:
+                value = getattr(self, field.name)
+
+            values.append(value)
+
+        return values
+
         """Ordered cells for this instance, matching ``display_fields`` order."""
         cells = []
 
