@@ -326,6 +326,16 @@ class GenericHtmxViewSet(
 
         return queryset
 
+    def get_success_url(self):
+        url = super().get_success_url()
+        if not url:
+            if self.action in self.list_actions or self.action == HtmxAction.DELETE:
+                url = reverse(f"{self.model_name}:{HtmxAction.LIST}")
+            elif self.action in self.object_actions:
+                url = reverse(f"{self.model_name}:{HtmxAction.DETAIL}")
+
+        return url
+
     def _normalize_template_names(self, names):
         if names is None:
             return []
