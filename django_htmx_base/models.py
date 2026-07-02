@@ -71,7 +71,11 @@ class BaseModel(models.Model):
         """
         Returns context-ready filter metadata for each filtrable field.
         """
-        return [field for field in cls.get_display_fields() if field.filtrable]
+        return [
+            field
+            for field in cls.get_display_fields()
+            if getattr(field, "filtrable", False)
+        ]
 
     @classmethod
     def get_filters_objects(cls):
@@ -114,7 +118,11 @@ class BaseModel(models.Model):
         """
         Returns a list of fields that are sortable.
         """
-        return [field.name for field in cls.get_display_fields() if field.sortable]
+        return [
+            field.name
+            for field in cls.get_display_fields()
+            if getattr(field, "sortable", False)
+        ]
 
     @classmethod
     def get_display_fields(cls):
