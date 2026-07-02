@@ -514,9 +514,9 @@ class HtmxViewSet(GenericHtmxViewSet):
         return self.render_to_response(self.context)
 
     def create(self, request, *args, **kwargs):  # noqa: ARG002
-        if request.method == "get":
+        if request.method == "GET":
             return self.render_to_response(self.context)
-        elif request.method == "post":
+        elif request.method == "POST":
             return self.process_form()
 
     def edit(self, request, *args, **kwargs):  # noqa: ARG002
