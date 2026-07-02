@@ -471,6 +471,11 @@ class HtmxViewSet(GenericHtmxViewSet):
         if hasattr(self, "action_map"):
             self.action = self.action_map.get(request.method.lower())
 
+        self._register_custom_action()
+
+        if self.action in self.list_actions:
+            self.ordering = self._get_ordering_params(self.model)
+
         if self.action in self.object_actions:
             self.object = self.get_object()
 
@@ -491,7 +496,6 @@ class HtmxViewSet(GenericHtmxViewSet):
             self.list_actions.add(self.action)
 
     def list(self):
-        self.ordering = self._get_ordering_params(self.model)
         context = self.get_context_data()
         return self.render_to_response(context)
 
