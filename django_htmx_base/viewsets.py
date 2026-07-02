@@ -82,7 +82,6 @@ class GenericHtmxViewSet(
 
     allow_empty = True
     content_type = None
-    model_name = None
     fields = None
     form_class = None
     initial = {}
@@ -104,16 +103,12 @@ class GenericHtmxViewSet(
     template_engine = None
 
     # Templates configuration.
-    list_template_name = None
     detail_template_name = None
     form_template_name = None
-    template_name_suffixes = {
-        HtmxAction.LIST: "_list",
-        HtmxAction.DETAIL: "_detail",
-        HtmxAction.CREATE: "_form",
-        HtmxAction.EDIT: "_form",
-        HtmxAction.DELETE: "_confirm_delete",
-    }
+    list_template_name = None
+    suffix_join = "_"
+    use_app_templates = False
+    use_model_templates = False
 
     # Context names configuration for list and object
     model_name = None
@@ -207,6 +202,7 @@ class GenericHtmxViewSet(
 
         if model_name is not None:
             context[model_name] = queryset
+
         return context
 
     def get_object_context_data(self, obj):
@@ -215,51 +211,47 @@ class GenericHtmxViewSet(
         model_name = self.get_model_name(obj=obj)
         if model_name:
             context[model_name] = obj
+            context["model"] = self._get_model()
         return context
 
     def get_template_names(self):
         """
         Consolidated template name retrieval that checks explicit templates,
-        object-specific template fields, and model-based defaults.
+        object-specific template fields, and app or model-based defaults.
         """
         template_name = self._get_action_template_name()
         if template_name is not None:
             return self._normalize_template_names(template_name)
 
-        names = []
+        suffix = self._get_action_template_name(default=True)
+        if self.use_model_templates or self.use_app_templates:
+            model = self._get_model()
+            names = []
+            if model is not None:
+                app_label = model._meta.app_label
+                model_name = model._meta.verbose_name
+                if self.use_model_templates:
+                    model_name += self.suffix_join
 
-        template_name_field = getattr(self, "template_name_field", None)
-        if self.object is not None and template_name_field:
-            name = getattr(self.object, template_name_field, None)
-            if name:
-                names.insert(0, name)
+                names.append(
+                        f"{app_name}"
+                        + "/"
+                        + f"{model_name if model_name else ""}"
+                        + f"{suffix}.html"
+                )
+                return names
 
-        model = self._get_model()
-        if model is not None:
-            opts = model._meta
-            names.append(
-                "%s/%s%s.html"
-                % (opts.app_label, opts.model_name, self._get_template_name_suffix())
-            )
+        return f"{suffix}.html"
 
-        if not names:
-            raise ImproperlyConfigured(
-                "%(cls)s requires template names. Define %(cls)s.template_name, "
-                "%(cls)s.model, or override %(cls)s.get_template_names()."
-                % {"cls": self.__class__.__name__}
-            )
-
-        return names
-
-    def _get_action_template_name(self):
+    def _get_action_template_name(self, default=False):
         if self.action in self.list_actions:
-            return self.list_template_name
+            return HtmxAction.LIST if default else self.list_template_name
 
         if self.action in {HtmxAction.CREATE, HtmxAction.EDIT}:
-            return self.form_template_name
+            return HtmxAction.FORM if default else self.form_template_name
 
         if self.action == HtmxAction.DETAIL:
-            return self.detail_template_name
+            return HtmxAction.DETAIL if default else self.detail_template_name
 
         return self.template_name
 
@@ -389,10 +381,6 @@ class GenericHtmxViewSet(
         if obj is not None and hasattr(obj, "_meta"):
             return obj.__class__
 
-        object_list = getattr(self, "object_list", None)
-        if object_list is not None and hasattr(object_list, "model"):
-            return object_list.model
-
         if self.model is not None:
             return self.model
 
@@ -401,11 +389,6 @@ class GenericHtmxViewSet(
             return queryset.model
 
         return None
-
-    def _get_template_name_suffix(self):
-        if not self.template_name_suffixes:
-            return ""
-        return self.template_name_suffixes.get(self.action, "")
 
     def _get_request_data(self):
         if self.request.method == "POST":
