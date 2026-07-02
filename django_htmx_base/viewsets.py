@@ -365,12 +365,12 @@ class GenericHtmxViewSet(
         return set(model.sortable_fields())
 
     def _get_filtrable_fields(self, model):
-        if model is None or not hasattr(model, "filtrable_fields"):
+        if model is None or not hasattr(model, "get_filtrable_fields"):
             return {}
 
         return {
-            filter_config["field"]: filter_config["filter_input_type"]
-            for filter_config in model.filtrable_fields()
+            field.name: field.filter_input_type
+            for field in model.get_filtrable_fields()
         }
 
     def _get_model(self):
