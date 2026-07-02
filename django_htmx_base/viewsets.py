@@ -333,14 +333,26 @@ class GenericHtmxViewSet(
         return queryset
 
     def get_success_url(self):
-        url = super().get_success_url()
-        if not url:
+        try:
+            return super().get_success_url()
+        except ImproperlyConfigured:
             if self.action in self.list_actions or self.action == HtmxAction.DELETE:
-                url = reverse(f"{self.model_name}:{HtmxAction.LIST}")
-            elif self.action in self.object_actions:
-                url = reverse(f"{self.model_name}:{HtmxAction.DETAIL}")
+                route_action = HtmxAction.LIST
+                kwargs = None
+            elif self.action in self.object_actions or self.action == HtmxAction.CREATE:
+                route_action = HtmxAction.DETAIL
+                kwargs = {self.pk_url_kwarg: self.object.pk}
+            else:
+                raise ImproperlyConfigured(
+                    f"No success URL is available for the {self.action!r} action."
+                )
 
-        return url
+            route_name = f"{self.basename}-{route_action}"
+            namespace = self.request.resolver_match.namespace
+            if namespace:
+                route_name = f"{namespace}:{route_name}"
+
+            return reverse(route_name, kwargs=kwargs)
 
     def _normalize_template_names(self, names):
         if names is None:
