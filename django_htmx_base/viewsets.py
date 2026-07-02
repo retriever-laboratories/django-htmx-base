@@ -13,7 +13,6 @@ from django.forms import models as model_forms
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.http import QueryDict
-from django.shortcuts import render
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.views.generic import View
@@ -536,17 +535,13 @@ class HtmxViewSet(GenericHtmxViewSet):
         return self.form_invalid(form)
 
     @action(methods=["get"], detail=False)
-    def download(self, request):
+    def download(self, request):  # noqa: ARG002
 
         queryset = self.get_queryset()
         model = self._get_model()
 
         if not hasattr(model, "is_downloadable") or not model.is_downloadable():
-            return render(
-                request,
-                "Downloading not allowed.",
-                status=403,
-            )
+            return HttpResponse(content="Downloading not allowed.", status=403)
 
         csv_content = model.to_csv(queryset)
         response = HttpResponse(csv_content, content_type="text/csv")
