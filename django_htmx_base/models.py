@@ -149,7 +149,6 @@ class BaseModel(models.Model):
 
         return values
 
-    @property
     def as_field_values_objects_list(self):
         """Ordered cells for this instance, matching ``display_fields`` order."""
         field_objects = []
