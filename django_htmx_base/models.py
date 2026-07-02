@@ -168,10 +168,10 @@ class BaseModel(models.Model):
     def to_csv(cls, queryset):
         output = StringIO(newline="")
         writer = csv.writer(output)
-        writer.writerow(cls.display_fields)
+        writer.writerow(field.name for field in cls.get_display_fields())
 
         for object in queryset:
-            writer.writerow(object.as_list())
+            writer.writerow(object.as_list)
 
         return output.getvalue()
 
