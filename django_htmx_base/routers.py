@@ -50,7 +50,7 @@ class HtmxRouter:
         Route(
             url=f"{{pk}}/{HtmxAction.DELETE}",
             mapping={
-                "get": HtmxAction.CREATEs,
+                "get": HtmxAction.CREATE,
                 "post": HtmxAction.DESTROY,
                 "delete": HtmxAction.DESTROY,
             },
@@ -102,7 +102,7 @@ class HtmxRouter:
                     route_detail=route.detail,
                     route_action=route.name,
                 )
-                urls.append(path(url, view, name=route.name))
+                urls.append(path(url, view, name=f"{basename}-{route.name}"))
 
         return urls
 

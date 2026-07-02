@@ -13,7 +13,6 @@ from django.forms import models as model_forms
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.http import QueryDict
-from django.shortcuts import render
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.views.generic import View
@@ -159,7 +158,7 @@ class GenericHtmxViewSet(
 
         if self.action in self.list_actions:
             object_list = queryset if queryset is not None else self.get_queryset()
-            if object_list:
+            if object_list is not None:
                 context.update(self.get_list_context_data(object_list))
 
         if self.action in self.object_actions:
@@ -179,7 +178,7 @@ class GenericHtmxViewSet(
         """
         Set context variables for list actions, including pagination if applicable.
         """
-        if not queryset:
+        if queryset is None:
             queryset = self.queryset
 
         page_size = self.get_paginate_by()
@@ -333,14 +332,26 @@ class GenericHtmxViewSet(
         return queryset
 
     def get_success_url(self):
-        url = super().get_success_url()
-        if not url:
+        try:
+            return super().get_success_url()
+        except ImproperlyConfigured:
             if self.action in self.list_actions or self.action == HtmxAction.DELETE:
-                url = reverse(f"{self.model_name}:{HtmxAction.LIST}")
-            elif self.action in self.object_actions:
-                url = reverse(f"{self.model_name}:{HtmxAction.DETAIL}")
+                route_action = HtmxAction.LIST
+                kwargs = None
+            elif self.action in self.object_actions or self.action == HtmxAction.CREATE:
+                route_action = HtmxAction.DETAIL
+                kwargs = {self.pk_url_kwarg: self.object.pk}
+            else:
+                raise ImproperlyConfigured(
+                    f"No success URL is available for the {self.action!r} action."
+                )
 
-        return url
+            route_name = f"{self.basename}-{route_action}"
+            namespace = self.request.resolver_match.namespace
+            if namespace:
+                route_name = f"{namespace}:{route_name}"
+
+            return reverse(route_name, kwargs=kwargs)
 
     def _normalize_template_names(self, names):
         if names is None:
@@ -365,12 +376,12 @@ class GenericHtmxViewSet(
         return set(model.sortable_fields())
 
     def _get_filtrable_fields(self, model):
-        if model is None or not hasattr(model, "filtrable_fields"):
+        if model is None or not hasattr(model, "get_filtrable_fields"):
             return {}
 
         return {
-            filter_config["field"]: filter_config["filter_input_type"]
-            for filter_config in model.filtrable_fields()
+            field.name: field.filter_input_type
+            for field in model.get_filtrable_fields()
         }
 
     def _get_model(self):
@@ -462,22 +473,6 @@ class HtmxViewSet(GenericHtmxViewSet):
         view.view_initkwargs = initkwargs
         view.actions = actions
 
-        cls.object_actions.update(
-            {
-                action
-                for action in actions.values()
-                if getattr(getattr(cls, action), "detail")
-            }
-        )
-
-        cls.list_actions.update(
-            {
-                action
-                for action in actions.values()
-                if not getattr(getattr(cls, action), "detail")
-            }
-        )
-
         update_wrapper(view, cls, updated=())
         update_wrapper(view, cls.dispatch, assigned=())
         return view
@@ -485,7 +480,13 @@ class HtmxViewSet(GenericHtmxViewSet):
     def dispatch(self, request, *args, **kwargs):
         self.model = self._get_model()
         if hasattr(self, "action_map"):
-            self.action = self.action_map.get(request.method.lower())
+            handler_action = self.action_map.get(request.method.lower())
+            self.action = getattr(self, "route_action", handler_action)
+
+        self._register_custom_action(handler_action)
+
+        if self.action in self.list_actions:
+            self.ordering = self._get_ordering_params(self.model)
 
         if self.action in self.object_actions:
             self.object = self.get_object()
@@ -493,24 +494,35 @@ class HtmxViewSet(GenericHtmxViewSet):
         self.context = self.get_context_data(obj=self.object, **kwargs)
         return super().dispatch(request, *args, **kwargs)
 
-    def list(self):
-        self.ordering = self._get_ordering_params(self.model)
-        context = self.get_context_data()
-        return self.render_to_response(context)
+    def _register_custom_action(self, handler_action):
+        handler = getattr(self, handler_action, None)
+        if not getattr(handler, "is_custom_action", False):
+            return
 
-    def detail(self):
+        self.object_actions = set(self.object_actions)
+        self.list_actions = set(self.list_actions)
+
+        if self.route_detail:
+            self.object_actions.add(self.action)
+        else:
+            self.list_actions.add(self.action)
+
+    def list(self, request, *args, **kwargs):  # noqa: ARG002
         return self.render_to_response(self.context)
 
-    def create(self, request, *args, **kwargs):
-        if request.method == "get":
-            return self.render_to_response(self.get_context_data())
-        elif request.method == "post":
-            return self.process_form(request, *args, **kwargs)
+    def detail(self, request, *args, **kwargs):  # noqa: ARG002
+        return self.render_to_response(self.context)
 
-    def edit(self, request, *args, **kwargs):
-        return self.process_form(request, *args, **kwargs)
+    def create(self, request, *args, **kwargs):  # noqa: ARG002
+        if request.method == "GET":
+            return self.render_to_response(self.context)
+        elif request.method == "POST":
+            return self.process_form()
 
-    def destroy(self):
+    def edit(self, request, *args, **kwargs):  # noqa: ARG002
+        return self.process_form()
+
+    def destroy(self, request, *args, **kwargs):  # noqa: ARG002
         success_url = self.get_success_url()
         self.object.delete()
         return HttpResponseRedirect(success_url)
@@ -522,17 +534,13 @@ class HtmxViewSet(GenericHtmxViewSet):
         return self.form_invalid(form)
 
     @action(methods=["get"], detail=False)
-    def download(self, request):
+    def download(self, request):  # noqa: ARG002
 
         queryset = self.get_queryset()
         model = self._get_model()
 
-        if not hasattr(model, "downloadable") or not model.downloadable:
-            return render(
-                request,
-                "Downloading not allowed.",
-                status=403,
-            )
+        if not hasattr(model, "is_downloadable") or not model.is_downloadable():
+            return HttpResponse(content="Downloading not allowed.", status=403)
 
         csv_content = model.to_csv(queryset)
         response = HttpResponse(csv_content, content_type="text/csv")

@@ -71,7 +71,11 @@ class BaseModel(models.Model):
         """
         Returns context-ready filter metadata for each filtrable field.
         """
-        return [field for field in cls.get_display_fields() if field.filtrable]
+        return [
+            field
+            for field in cls.get_display_fields()
+            if getattr(field, "filtrable", False)
+        ]
 
     @classmethod
     def get_filters_objects(cls):
@@ -114,7 +118,11 @@ class BaseModel(models.Model):
         """
         Returns a list of fields that are sortable.
         """
-        return [field.name for field in cls.get_display_fields() if field.sortable]
+        return [
+            field.name
+            for field in cls.get_display_fields()
+            if getattr(field, "sortable", False)
+        ]
 
     @classmethod
     def get_display_fields(cls):
@@ -128,7 +136,6 @@ class BaseModel(models.Model):
     def display_fields(self):
         return self.get_display_fields()
 
-    @property
     def as_list(self):
         """Ordered values for this instance, matching ``display_fields`` order."""
         values = []
@@ -142,7 +149,6 @@ class BaseModel(models.Model):
 
         return values
 
-    @property
     def as_field_values_objects_list(self):
         """Ordered cells for this instance, matching ``display_fields`` order."""
         field_objects = []
@@ -168,7 +174,7 @@ class BaseModel(models.Model):
     def to_csv(cls, queryset):
         output = StringIO(newline="")
         writer = csv.writer(output)
-        writer.writerow(cls.display_fields)
+        writer.writerow(field.name for field in cls.get_display_fields())
 
         for object in queryset:
             writer.writerow(object.as_list())
@@ -198,6 +204,6 @@ class BaseModel(models.Model):
 
         return columns
 
-    @property
-    def downloadable(self):
-        return self._downloadable
+    @classmethod
+    def is_downloadable(cls):
+        return cls._downloadable
