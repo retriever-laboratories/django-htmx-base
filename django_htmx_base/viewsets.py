@@ -469,9 +469,10 @@ class HtmxViewSet(GenericHtmxViewSet):
     def dispatch(self, request, *args, **kwargs):
         self.model = self._get_model()
         if hasattr(self, "action_map"):
-            self.action = self.action_map.get(request.method.lower())
+            handler_action = self.action_map.get(request.method.lower())
+            self.action = getattr(self, "route_action", handler_action)
 
-        self._register_custom_action()
+        self._register_custom_action(handler_action)
 
         if self.action in self.list_actions:
             self.ordering = self._get_ordering_params(self.model)
@@ -482,8 +483,8 @@ class HtmxViewSet(GenericHtmxViewSet):
         self.context = self.get_context_data(obj=self.object, **kwargs)
         return super().dispatch(request, *args, **kwargs)
 
-    def _register_custom_action(self):
-        handler = getattr(self, self.action, None)
+    def _register_custom_action(self, handler_action):
+        handler = getattr(self, handler_action, None)
         if not getattr(handler, "is_custom_action", False):
             return
 
