@@ -136,7 +136,6 @@ class BaseModel(models.Model):
     def display_fields(self):
         return self.get_display_fields()
 
-    @property
     def as_list(self):
         """Ordered values for this instance, matching ``display_fields`` order."""
         values = []
@@ -179,7 +178,7 @@ class BaseModel(models.Model):
         writer.writerow(field.name for field in cls.get_display_fields())
 
         for object in queryset:
-            writer.writerow(object.as_list)
+            writer.writerow(object.as_list())
 
         return output.getvalue()
 
