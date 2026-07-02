@@ -495,23 +495,23 @@ class HtmxViewSet(GenericHtmxViewSet):
         else:
             self.list_actions.add(self.action)
 
-    def list(self):
+    def list(self, request, *args, **kwargs):  # noqa: ARG002
         context = self.get_context_data()
         return self.render_to_response(context)
 
-    def detail(self):
+    def detail(self, request, *args, **kwargs):  # noqa: ARG002
         return self.render_to_response(self.context)
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):  # noqa: ARG002
         if request.method == "get":
             return self.render_to_response(self.get_context_data())
         elif request.method == "post":
-            return self.process_form(request, *args, **kwargs)
+            return self.process_form()
 
-    def edit(self, request, *args, **kwargs):
-        return self.process_form(request, *args, **kwargs)
+    def edit(self, request, *args, **kwargs):  # noqa: ARG002
+        return self.process_form()
 
-    def destroy(self):
+    def destroy(self, request, *args, **kwargs):  # noqa: ARG002
         success_url = self.get_success_url()
         self.object.delete()
         return HttpResponseRedirect(success_url)
