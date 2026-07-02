@@ -158,7 +158,7 @@ class GenericHtmxViewSet(
 
         if self.action in self.list_actions:
             object_list = queryset if queryset is not None else self.get_queryset()
-            if object_list:
+            if object_list is not None:
                 context.update(self.get_list_context_data(object_list))
 
         if self.action in self.object_actions:
@@ -178,7 +178,7 @@ class GenericHtmxViewSet(
         """
         Set context variables for list actions, including pagination if applicable.
         """
-        if not queryset:
+        if queryset is None:
             queryset = self.queryset
 
         page_size = self.get_paginate_by()
@@ -508,8 +508,7 @@ class HtmxViewSet(GenericHtmxViewSet):
             self.list_actions.add(self.action)
 
     def list(self, request, *args, **kwargs):  # noqa: ARG002
-        context = self.get_context_data()
-        return self.render_to_response(context)
+        return self.render_to_response(self.context)
 
     def detail(self, request, *args, **kwargs):  # noqa: ARG002
         return self.render_to_response(self.context)
