@@ -528,7 +528,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         queryset = self.get_queryset()
         model = self._get_model()
 
-        if not hasattr(model, "downloadable") or not model.downloadable:
+        if not hasattr(model, "is_downloadable") or not model.is_downloadable():
             return render(
                 request,
                 "Downloading not allowed.",

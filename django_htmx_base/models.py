@@ -198,6 +198,6 @@ class BaseModel(models.Model):
 
         return columns
 
-    @property
-    def downloadable(self):
-        return self._downloadable
+    @classmethod
+    def is_downloadable(cls):
+        return cls._downloadable
