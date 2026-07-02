@@ -50,7 +50,7 @@ class HtmxRouter:
         Route(
             url=f"{{pk}}/{HtmxAction.DELETE}",
             mapping={
-                "get": HtmxAction.CREATEs,
+                "get": HtmxAction.CREATE,
                 "post": HtmxAction.DESTROY,
                 "delete": HtmxAction.DESTROY,
             },
