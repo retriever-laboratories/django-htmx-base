@@ -462,22 +462,6 @@ class HtmxViewSet(GenericHtmxViewSet):
         view.view_initkwargs = initkwargs
         view.actions = actions
 
-        cls.object_actions.update(
-            {
-                action
-                for action in actions.values()
-                if getattr(getattr(cls, action), "detail")
-            }
-        )
-
-        cls.list_actions.update(
-            {
-                action
-                for action in actions.values()
-                if not getattr(getattr(cls, action), "detail")
-            }
-        )
-
         update_wrapper(view, cls, updated=())
         update_wrapper(view, cls.dispatch, assigned=())
         return view
@@ -492,6 +476,19 @@ class HtmxViewSet(GenericHtmxViewSet):
 
         self.context = self.get_context_data(obj=self.object, **kwargs)
         return super().dispatch(request, *args, **kwargs)
+
+    def _register_custom_action(self):
+        handler = getattr(self, self.action, None)
+        if not getattr(handler, "is_custom_action", False):
+            return
+
+        self.object_actions = set(self.object_actions)
+        self.list_actions = set(self.list_actions)
+
+        if self.route_detail:
+            self.object_actions.add(self.action)
+        else:
+            self.list_actions.add(self.action)
 
     def list(self):
         self.ordering = self._get_ordering_params(self.model)
