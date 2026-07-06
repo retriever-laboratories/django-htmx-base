@@ -234,7 +234,7 @@ class GenericHtmxViewSet(
                     model_name += self.suffix_join
 
                 names.append(
-                        f"{app_name}"
+                    f"{app_label}"
                         + "/"
                         + f"{model_name if model_name else ""}"
                         + f"{suffix}.html"
