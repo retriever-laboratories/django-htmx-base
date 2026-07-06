@@ -235,9 +235,9 @@ class GenericHtmxViewSet(
 
                 names.append(
                     f"{app_label}"
-                        + "/"
-                        + f"{model_name if model_name else ""}"
-                        + f"{suffix}.html"
+                    + "/"
+                    + f"{model_name if model_name else ''}"
+                    + f"{suffix}.html"
                 )
                 return names
 
@@ -348,8 +348,7 @@ class GenericHtmxViewSet(
     def _normalize_template_names(self, names):
         if names is None:
             return []
-        if isinstance(names, str):
-            return [names]
+        
         return list(names)
 
     def _get_ordering_params(self, model):
