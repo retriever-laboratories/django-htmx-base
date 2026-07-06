@@ -227,19 +227,25 @@ class GenericHtmxViewSet(
         if self.use_model_templates or self.use_app_templates:
             model = self._get_model()
             names = []
-            if model is not None:
-                app_label = model._meta.app_label
-                model_name = model._meta.verbose_name
-                if self.use_model_templates:
-                    model_name += self.suffix_join
-
-                names.append(
-                    f"{app_label}"
-                    + "/"
-                    + f"{model_name if model_name else ''}"
-                    + f"{suffix}.html"
+            if not model:
+                raise ImproperlyConfigured(
+                    "Cannot determine model for template name resolution. "
+                    "or disable use_model_templates and use_app_templates "
+                    "in the viewset."
                 )
-                return names
+
+            app_label = model._meta.app_label
+            model_name = model._meta.verbose_name
+            if self.use_model_templates:
+                model_name += self.suffix_join
+
+            names.append(
+                f"{app_label}"
+                + "/"
+                + f"{model_name if model_name else ''}"
+                + f"{suffix}.html"
+            )
+            return names
 
         return f"{suffix}.html"
 
@@ -348,7 +354,7 @@ class GenericHtmxViewSet(
     def _normalize_template_names(self, names):
         if names is None:
             return []
-        
+
         return list(names)
 
     def _get_ordering_params(self, model):
