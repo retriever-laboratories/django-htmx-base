@@ -514,7 +514,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         response["Content-Disposition"] = f"attachment; filename='{model.__name__}.csv'"
         return response
 
-    def _get_form_class(self):
+    def get_form_class(self):
         """
         Returns the form class to use. Falls back to a dynamically 
         configured BaseModelForm if self.form_class is not set.
