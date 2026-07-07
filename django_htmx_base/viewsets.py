@@ -484,7 +484,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         if request.method == "GET":
             return self.render_to_response(self.context)
         elif request.method == "POST":
-            return self.process_form()
+            return self.process_formset()
 
     def edit(self, request, *args, **kwargs):  # noqa: ARG002
         return self.process_form()
@@ -494,11 +494,14 @@ class HtmxViewSet(GenericHtmxViewSet):
         self.object.delete()
         return HttpResponseRedirect(success_url)
 
-    def process_form(self):
-        form = self.get_form()
-        if form.is_valid():
-            return self.form_valid(form)
-        return self.form_invalid(form)
+    def process_formset(self):
+        self.formset = self.get_formset()
+        if self.formset.is_valid():
+            self.formset.save()
+            return HttpResponseRedirect(self.get_success_url())
+
+        context = self.get_context_data()
+        return self.render_to_response(context)
 
     @action(methods=["get"], detail=False)
     def download(self, request):  # noqa: ARG002
