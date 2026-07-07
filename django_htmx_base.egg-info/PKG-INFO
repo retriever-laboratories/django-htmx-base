@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: django-htmx-base
-Version: 0.1.1
+Version: 0.1.2
 Summary: A collection of classes and abstract models for django + htmx projects
 Author-email: Jorge Guerra <jorge@retlabs.cl>
 License-Expression: MIT
