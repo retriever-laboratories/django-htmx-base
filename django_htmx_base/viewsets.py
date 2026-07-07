@@ -84,7 +84,6 @@ class GenericHtmxViewSet(
 
     allow_empty = True
     content_type = None
-    fields = None
     initial = {}
     model = None
     object = None
@@ -126,7 +125,6 @@ class GenericHtmxViewSet(
     extra_forms = 1
     form_actions = object_actions | {HtmxAction.CREATE}
     form_class = None
-    form_fields = None
     form_template_name = None
     formset = None
 
@@ -513,22 +511,8 @@ class HtmxViewSet(GenericHtmxViewSet):
 
         csv_content = model.to_csv(queryset)
         response = HttpResponse(csv_content, content_type="text/csv")
-        response["Content-Disposition"] = f'attachment; filename="{model.__name__}.csv"'
+        response["Content-Disposition"] = f"attachment; filename='{model.__name__}.csv'"
         return response
-
-    def _get_form_fields(self):
-        """
-        Determines which fields to include in the form.
-        Checks ViewSet attribute first, then model method, then defaults to all.
-        """
-        if hasattr(self, 'form_fields') and self.form_fields:
-            return self.form_fields
-
-        model = self._get_model()
-        if hasattr(model, 'get_form_fields') and callable(getattr(model, 'get_form_fields')):
-            return model.get_form_fields()
-
-        return '__all__'
 
     def _get_form_class(self):
         """
@@ -536,17 +520,28 @@ class HtmxViewSet(GenericHtmxViewSet):
         configured BaseModelForm if self.form_class is not set.
         """
 
+        if self.form_class:
+            return self.form_class
+
         model = self._get_model()
-        form_fields = self._get_form_fields()
 
-        self.form_class = self.form_class or BaseModelForm
+        meta_attributes = {
+            "model": model,
+        }
 
-        class DynamicModelForm(self.form_class):
-            class Meta:
-                model = model
-                fields = form_fields
+        MetaClass = type("Meta", (object,), meta_attributes)
 
-        return DynamicModelForm
+        form_attributes = {
+            "Meta": MetaClass
+        }
+
+        self.form_class = type(
+            "DynamicModelForm",
+            (BaseModelForm,),
+            form_attributes,
+        )
+
+        return self.form_class
 
     def _get_formset_class(self):
         """Generates the FormSet class using modelformset_factory."""
@@ -576,21 +571,21 @@ class HtmxViewSet(GenericHtmxViewSet):
             formset_queryset = formset_queryset.filter(pk=obj.pk)
 
         default_kwargs = {
-            'queryset': formset_queryset,
+            "queryset": formset_queryset,
         }
 
-        if self.request.method in ('POST', 'PUT', 'PATCH'):
+        if self.request.method in ("POST", "PUT", "PATCH"):
             default_kwargs.update({
-                'data': self.request.POST,
-                'files': self.request.FILES,
+                "data": self.request.POST,
+                "files": self.request.FILES,
             })
 
         form_kwargs = {}
-        if self.request.method == 'PATCH':
-            form_kwargs['empty_permitted'] = True
+        if self.request.method == "PATCH":
+            form_kwargs["empty_permitted"] = True
 
         default_kwargs.update(kwargs)
-        default_kwargs.setdefault('form_kwargs', {})
-        default_kwargs['form_kwargs'].update(form_kwargs)
+        default_kwargs.setdefault("form_kwargs", {})
+        default_kwargs["form_kwargs"].update(form_kwargs)
 
         return FormSetClass(**default_kwargs)
