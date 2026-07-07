@@ -130,7 +130,7 @@ class GenericHtmxViewSet(
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        return self.filter_queryset(queryset, self._get_model())
+        return self.filter_queryset(queryset, self.get_model())
 
     def get_model_name(self, queryset=None, obj=None):
         """
@@ -203,7 +203,7 @@ class GenericHtmxViewSet(
                 "object_list": queryset,
             }
 
-        context["model"] = self._get_model()
+        context["model"] = self.get_model()
 
         if model_name is not None:
             context[model_name] = queryset
@@ -216,7 +216,7 @@ class GenericHtmxViewSet(
         model_name = self.get_model_name(obj=obj)
         if model_name:
             context[model_name] = obj
-            context["model"] = self._get_model()
+            context["model"] = self.get_model()
         return context
 
     def get_template_names(self):
@@ -224,13 +224,13 @@ class GenericHtmxViewSet(
         Consolidated template name retrieval that checks explicit templates,
         object-specific template fields, and app or model-based defaults.
         """
-        template_name = self._get_action_template_name()
+        template_name = self.get_action_template_name()
         if template_name is not None:
-            return self._normalize_template_names(template_name)
+            return self.normalize_template_names(template_name)
 
-        suffix = self._get_action_template_name(default=True)
+        suffix = self.get_action_template_name(default=True)
         if self.use_model_templates or self.use_app_templates:
-            model = self._get_model()
+            model = self.get_model()
             names = []
             if not model:
                 raise ImproperlyConfigured(
@@ -254,7 +254,7 @@ class GenericHtmxViewSet(
 
         return f"{suffix}.html"
 
-    def _get_action_template_name(self, default=False):
+    def get_action_template_name(self, default=False):
         if self.action in self.list_actions:
             return HtmxAction.LIST if default else self.list_template_name
 
@@ -274,7 +274,7 @@ class GenericHtmxViewSet(
         return self.paginate_by
 
     def filter_queryset(self, queryset, model):
-        filtrable_fields = self._get_filtrable_fields(model)
+        filtrable_fields = self.get_filtrable_fields(model)
         if not filtrable_fields:
             return queryset
 
@@ -327,14 +327,14 @@ class GenericHtmxViewSet(
 
             return reverse(route_name, kwargs=kwargs)
 
-    def _normalize_template_names(self, names):
+    def normalize_template_names(self, names):
         if names is None:
             return []
 
         return list(names)
 
-    def _get_ordering_params(self, model):
-        sortable_fields = self._get_sortable_fields(model)
+    def get_ordering_params(self, model):
+        sortable_fields = self.get_sortable_fields(model)
         if not sortable_fields:
             return ()
 
@@ -342,13 +342,13 @@ class GenericHtmxViewSet(
         ordering = [x for x in ordering_list if x]
         return [x for x in ordering if x.lstrip("-") in sortable_fields]
 
-    def _get_sortable_fields(self, model):
+    def get_sortable_fields(self, model):
         if model is None or not hasattr(model, "sortable_fields"):
             return set()
 
         return set(model.sortable_fields())
 
-    def _get_filtrable_fields(self, model):
+    def get_filtrable_fields(self, model):
         if model is None or not hasattr(model, "get_filtrable_fields"):
             return {}
 
@@ -357,7 +357,7 @@ class GenericHtmxViewSet(
             for field in model.get_filtrable_fields()
         }
 
-    def _get_model(self):
+    def get_model(self):
         obj = getattr(self, "object", None)
         if obj is not None and hasattr(obj, "_meta"):
             return obj.__class__
@@ -371,7 +371,7 @@ class GenericHtmxViewSet(
 
         return None
 
-    def _get_request_data(self):
+    def get_request_data(self):
         if self.request.method == "POST":
             return self.request.POST
 
@@ -442,26 +442,26 @@ class HtmxViewSet(GenericHtmxViewSet):
         return view
 
     def dispatch(self, request, *args, **kwargs):
-        self.model = self._get_model()
+        self.model = self.get_model()
         if hasattr(self, "action_map"):
             handler_action = self.action_map.get(request.method.lower())
             self.action = getattr(self, "route_action", handler_action)
 
-        self._register_custom_action(handler_action)
+        self.register_custom_action(handler_action)
 
         if self.action in self.list_actions:
-            self.ordering = self._get_ordering_params(self.model)
+            self.ordering = self.get_ordering_params(self.model)
 
         if self.action in self.object_actions:
             self.object = self.get_object()
 
         if self.action in self.form_actions:
-            self.formset = self._get_formset()
+            self.formset = self.get_formset()
 
         self.context = self.get_context_data(obj=self.object, **kwargs)
         return super().dispatch(request, *args, **kwargs)
 
-    def _register_custom_action(self, handler_action):
+    def register_custom_action(self, handler_action):
         handler = getattr(self, handler_action, None)
         if not getattr(handler, "is_custom_action", False):
             return
@@ -504,7 +504,7 @@ class HtmxViewSet(GenericHtmxViewSet):
     def download(self, request):  # noqa: ARG002
 
         queryset = self.get_queryset()
-        model = self._get_model()
+        model = self.get_model()
 
         if not hasattr(model, "is_downloadable") or not model.is_downloadable():
             return HttpResponse(content="Downloading not allowed.", status=403)
@@ -523,7 +523,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         if self.form_class:
             return self.form_class
 
-        model = self._get_model()
+        model = self.get_model()
 
         meta_attributes = {
             "model": model,
@@ -544,23 +544,23 @@ class HtmxViewSet(GenericHtmxViewSet):
 
         return self.form_class
 
-    def _get_formset_class(self):
+    def get_formset_class(self):
         """Generates the FormSet class using modelformset_factory."""
-        form_base_class = self._get_form_class()
+        form_base_class = self.get_form_class()
 
         return modelformset_factory(
-            model=self._get_model(),
+            model=self.get_model(),
             form=form_base_class,
             extra=self.extra_forms
         )
 
-    def _get_formset(self, **kwargs):
+    def get_formset(self, **kwargs):
         """
         Dynamically constructs, configures, and instantiates the formset.
         Handles object editing context, full updates (PUT), and partial updates (PATCH).
         """
-        resolved_form_class = self._get_form_class()
-        model = self._get_model()
+        resolved_form_class = self.get_form_class()
+        model = self.get_model()
         FormSetClass = modelformset_factory(
             model=model,
             form=resolved_form_class,
