@@ -26,7 +26,7 @@ from django.views.generic.list import MultipleObjectMixin
 from django_htmx_base.models import FilterInputType
 
 # forms
-from base.forms import BaseModelForm
+from django_htmx_base.forms import BaseModelForm
 
 
 def action(methods=None, detail=None, url_path=None, url_name=None):
