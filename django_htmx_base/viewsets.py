@@ -122,7 +122,7 @@ class GenericHtmxViewSet(
     paginate_by = settings.PAGINATE_BY if hasattr(settings, "PAGINATE_BY") else None
 
     # Form config
-    extra_forms = 1
+    extra_forms = 0
     form_actions = object_actions | {HtmxAction.CREATE}
     form_class = None
     form_template_name = None
@@ -560,15 +560,19 @@ class HtmxViewSet(GenericHtmxViewSet):
         Handles object editing context, full updates (PUT), and partial updates (PATCH).
         """
         resolved_form_class = self._get_form_class()
+        model = self._get_model()
         FormSetClass = modelformset_factory(
-            model=self._get_model(),
+            model=model,
             form=resolved_form_class,
             extra=self.extra_forms
         )
 
-        formset_queryset = self.get_queryset()
         if self.object:
-            formset_queryset = formset_queryset.filter(pk=obj.pk)
+            formset_queryset = self.get_queryset().filter(pk=obj.pk)
+        elif self.action = HtmxAction.CREATE:
+            formset_queryset = model.objects.none()
+        else:
+            formset_queryset = self.get_queryset()
 
         default_kwargs = {
             "queryset": formset_queryset,
