@@ -566,7 +566,7 @@ class HtmxViewSet(GenericHtmxViewSet):
             extra=self.extra_forms
         )
 
-        formset_queryset = self._get_queryset()
+        formset_queryset = self.get_queryset()
         obj = self.get_object()
         if obj:
             formset_queryset = formset_queryset.filter(pk=obj.pk)
