@@ -527,6 +527,7 @@ class HtmxViewSet(GenericHtmxViewSet):
 
         meta_attributes = {
             "model": model,
+            "fields": "__all__",
         }
 
         MetaClass = type("Meta", (object,), meta_attributes)
