@@ -9,6 +9,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.paginator import Paginator
 from django.db import models
 from django.forms import Form
+from django.forms import modelformset_factory
 from django.forms import models as model_forms
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
@@ -23,6 +24,9 @@ from django.views.generic.list import MultipleObjectMixin
 
 # models
 from django_htmx_base.models import FilterInputType
+
+# forms
+from base.forms import BaseModelForm
 
 
 def action(methods=None, detail=None, url_path=None, url_name=None):
@@ -76,14 +80,11 @@ class GenericHtmxViewSet(
     - get_context_data
     - get_model_name
     - get_template_names
-    - get_form_class and get_form_kwargs
-
     """
 
     allow_empty = True
     content_type = None
     fields = None
-    form_class = None
     initial = {}
     model = None
     object = None
@@ -104,7 +105,6 @@ class GenericHtmxViewSet(
 
     # Templates configuration.
     detail_template_name = None
-    form_template_name = None
     list_template_name = None
     suffix_join = "_"
     use_app_templates = False
@@ -117,11 +117,18 @@ class GenericHtmxViewSet(
     # Actions types separation for context data handling
     list_actions = {HtmxAction.LIST}
     object_actions = {HtmxAction.DETAIL, HtmxAction.EDIT, HtmxAction.DELETE}
-    form_actions = object_actions | {HtmxAction.CREATE}
 
     # Pagination config
     page_size_options = (10, 50, 100)
     paginate_by = settings.PAGINATE_BY if hasattr(settings, "PAGINATE_BY") else None
+
+    # Form config
+    extra_forms = 1
+    form_actions = object_actions | {HtmxAction.CREATE}
+    form_class = None
+    form_fields = None
+    form_template_name = None
+    formset = None
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -163,8 +170,8 @@ class GenericHtmxViewSet(
             if obj and obj is not None:
                 context.update(self.get_object_context_data(obj))
 
-        if self.action in self.form_actions and "form" not in kwargs:
-            context.update({"form": self.get_form()})
+        if self.action in self.form_actions and "formset" not in kwargs:
+            context.update({"formset": self.formset})
 
         context.update(kwargs)
         return ContextMixin.get_context_data(self, **context)
@@ -260,35 +267,6 @@ class GenericHtmxViewSet(
             return HtmxAction.DETAIL if default else self.detail_template_name
 
         return self.template_name
-
-    def get_form_class(self):
-        """
-        Consolidated form class retrieval for create, edit, and delete actions.
-        """
-        if self.action == HtmxAction.DELETE:
-            return Form
-
-        return super().get_form_class()
-
-    def get_form_kwargs(self):
-        """
-        Add support for PATCH and handle data serialization
-        for non-POST methods in form processing.
-        """
-        kwargs = super().get_form_kwargs()
-
-        if self.request.method in ("PUT", "PATCH"):
-            kwargs.update(
-                {
-                    "data": self._get_request_data(),
-                    "files": self.request.FILES,
-                }
-            )
-
-        if not issubclass(self.get_form_class(), model_forms.ModelForm):
-            kwargs.pop("instance", None)
-
-        return kwargs
 
     def is_htmx(self):
         return self.request.headers.get("HX-Request") == "true"
@@ -479,6 +457,9 @@ class HtmxViewSet(GenericHtmxViewSet):
         if self.action in self.object_actions:
             self.object = self.get_object()
 
+        if self.action in self.form_actions:
+            self.formset = self._get_formset()
+
         self.context = self.get_context_data(obj=self.object, **kwargs)
         return super().dispatch(request, *args, **kwargs)
 
@@ -534,3 +515,82 @@ class HtmxViewSet(GenericHtmxViewSet):
         response = HttpResponse(csv_content, content_type="text/csv")
         response["Content-Disposition"] = f'attachment; filename="{model.__name__}.csv"'
         return response
+
+    def _get_form_fields(self):
+        """
+        Determines which fields to include in the form.
+        Checks ViewSet attribute first, then model method, then defaults to all.
+        """
+        if hasattr(self, 'form_fields') and self.form_fields:
+            return self.form_fields
+
+        model = self._get_model()
+        if hasattr(model, 'get_form_fields') and callable(getattr(model, 'get_form_fields')):
+            return model.get_form_fields()
+
+        return '__all__'
+
+    def _get_form_class(self):
+        """
+        Returns the form class to use. Falls back to a dynamically 
+        configured BaseModelForm if self.form_class is not set.
+        """
+
+        model = self._get_model()
+        form_fields = self._get_form_fields()
+
+        self.form_class = self.form_class or BaseModelForm
+
+        class DynamicModelForm(self.form_class):
+            class Meta:
+                model = model
+                fields = form_fields
+
+        return DynamicModelForm
+
+    def _get_formset_class(self):
+        """Generates the FormSet class using modelformset_factory."""
+        form_base_class = self._get_form_class()
+
+        return modelformset_factory(
+            model=self._get_model(),
+            form=form_base_class,
+            extra=self.extra_forms
+        )
+
+    def _get_formset(self, **kwargs):
+        """
+        Dynamically constructs, configures, and instantiates the formset.
+        Handles object editing context, full updates (PUT), and partial updates (PATCH).
+        """
+        resolved_form_class = self._get_form_class()
+        FormSetClass = modelformset_factory(
+            model=self._get_model(),
+            form=resolved_form_class,
+            extra=self.extra_forms
+        )
+
+        formset_queryset = self._get_queryset()
+        obj = self.get_object()
+        if obj:
+            formset_queryset = formset_queryset.filter(pk=obj.pk)
+
+        default_kwargs = {
+            'queryset': formset_queryset,
+        }
+
+        if self.request.method in ('POST', 'PUT', 'PATCH'):
+            default_kwargs.update({
+                'data': self.request.POST,
+                'files': self.request.FILES,
+            })
+
+        form_kwargs = {}
+        if self.request.method == 'PATCH':
+            form_kwargs['empty_permitted'] = True
+
+        default_kwargs.update(kwargs)
+        default_kwargs.setdefault('form_kwargs', {})
+        default_kwargs['form_kwargs'].update(form_kwargs)
+
+        return FormSetClass(**default_kwargs)
