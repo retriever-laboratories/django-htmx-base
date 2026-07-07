@@ -2,7 +2,7 @@
 from django import forms
 
 # widgets
-from base.widgets import WidgetStylerMixin
+from django_htmx_base.widgets import WidgetStylerMixin
 
 
 class BaseForm(WidgetStylerMixin, forms.Form):
