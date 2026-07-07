@@ -497,7 +497,10 @@ class HtmxViewSet(GenericHtmxViewSet):
     def process_formset(self):
         self.formset = self.get_formset()
         if self.formset.is_valid():
-            self.formset.save()
+            instances = self.formset.save()
+            for obj in instances:
+                self.object = obj
+
             return HttpResponseRedirect(self.get_success_url())
 
         context = self.get_context_data()
