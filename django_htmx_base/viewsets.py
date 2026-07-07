@@ -561,16 +561,12 @@ class HtmxViewSet(GenericHtmxViewSet):
         """
         resolved_form_class = self.get_form_class()
         model = self.get_model()
-        FormSetClass = modelformset_factory(
-            model=model,
-            form=resolved_form_class,
-            extra=self.extra_forms
-        )
 
         if self.object:
             formset_queryset = self.get_queryset().filter(pk=obj.pk)
         elif self.action == HtmxAction.CREATE:
             formset_queryset = model.objects.none()
+            self.extra_forms = 1
         else:
             formset_queryset = self.get_queryset()
 
@@ -591,5 +587,11 @@ class HtmxViewSet(GenericHtmxViewSet):
         default_kwargs.update(kwargs)
         default_kwargs.setdefault("form_kwargs", {})
         default_kwargs["form_kwargs"].update(form_kwargs)
+
+        FormSetClass = modelformset_factory(
+            model=model,
+            form=resolved_form_class,
+            extra=self.extra_forms
+        )
 
         return FormSetClass(**default_kwargs)
