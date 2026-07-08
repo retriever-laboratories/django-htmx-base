@@ -1,7 +1,5 @@
-# django
 from django.test import TestCase
 
-# tests
 from tests.models import Article
 
 
