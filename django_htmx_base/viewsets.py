@@ -573,7 +573,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         model = self.get_model()
 
         if self.object:
-            formset_queryset = self.get_queryset().filter(pk=obj.pk)
+            formset_queryset = self.get_queryset().filter(pk=self.object.pk)
         elif self.action == HtmxAction.CREATE:
             formset_queryset = model.objects.none()
             self.extra_forms = 1
