@@ -230,7 +230,7 @@ class GenericHtmxViewSet(
 
         if self.is_htmx_partial():
             template_name = self.normalize_template_names(
-                self.request.html.trigger_name
+                self.request.htmx.trigger_name
             )
             if template_name:
                 return template_name
