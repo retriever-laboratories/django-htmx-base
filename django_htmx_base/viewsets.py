@@ -228,6 +228,14 @@ class GenericHtmxViewSet(
         if template_name is not None:
             return self.normalize_template_names(template_name)
 
+        if self.is_htmx_partial():
+            template_name = self.normalize_template_names(
+                self.request.html.trigger_name
+            )
+            if template_name:
+                return template_name
+
+
         suffix = self.get_action_template_name(default=True)
         if self.use_model_templates or self.use_app_templates:
             model = self.get_model()
@@ -266,8 +274,13 @@ class GenericHtmxViewSet(
 
         return self.template_name
 
-    def is_htmx(self):
-        return self.request.headers.get("HX-Request") == "true"
+    def is_htmx_partial(self):
+        return (
+            self.request.htmx
+            and self.request.htmx.trigger_name
+            and not self.request.htmx.boosted
+            and self.action == HtmxAction.LIST
+        )
 
     def get_paginate_by(self):
         self.paginate_by = self.request.GET.get("page_size", self.paginate_by)
