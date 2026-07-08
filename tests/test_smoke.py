@@ -4,7 +4,6 @@ from tests.models import Article
 
 
 class LibraryHealthTests(TestCase):
-
     def test_every_module_of_the_library_imports(self):
         from django_htmx_base import admin  # noqa: F401
         from django_htmx_base import models  # noqa: F401
