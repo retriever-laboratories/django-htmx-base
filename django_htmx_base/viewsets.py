@@ -226,15 +226,12 @@ class GenericHtmxViewSet(
         """
         template_name = self.get_action_template_name()
         if template_name is not None:
-            return self.normalize_template_names(template_name)
+            return [template_name]
 
         if self.is_htmx_partial():
-            template_name = self.normalize_template_names(
-                self.request.htmx.trigger_name
-            )
+            template_name = self.request.htmx.trigger_name
             if template_name:
-                return template_name
-
+                return [template_name]
 
         suffix = self.get_action_template_name(default=True)
         if self.use_model_templates or self.use_app_templates:
@@ -260,7 +257,7 @@ class GenericHtmxViewSet(
             )
             return names
 
-        return f"{suffix}.html"
+        return [f"{suffix}.html"]
 
     def get_action_template_name(self, default=False):
         if self.action in self.list_actions:
@@ -339,12 +336,6 @@ class GenericHtmxViewSet(
                 route_name = f"{namespace}:{route_name}"
 
             return reverse(route_name, kwargs=kwargs)
-
-    def normalize_template_names(self, names):
-        if names is None:
-            return []
-
-        return list(names)
 
     def get_ordering_params(self, model):
         sortable_fields = self.get_sortable_fields(model)
