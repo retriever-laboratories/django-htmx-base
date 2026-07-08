@@ -1,4 +1,3 @@
-
 from django.db import models
 
 from django_htmx_base.models import BaseField
