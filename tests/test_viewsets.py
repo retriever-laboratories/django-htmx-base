@@ -1,13 +1,13 @@
 from django.test import TestCase
 
-from tests.models import Article
+from tests.models import TestBaseModel
 
 
-class HtmxViewSetTests(TestCase):
+class HtmxViewSetTestCase(TestCase):
     def test_the_list_action_shows_the_objects(self):
-        Article.objects.create(title="Hello")
+        TestBaseModel.objects.create(test_charfield="Hello")
 
-        response = self.client.get("/articles/")
+        response = self.client.get("/test-base-models/")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Hello")
