@@ -8,6 +8,10 @@ MODULES = ["admin", "models", "routers", "urls", "views", "viewsets"]
 
 
 class HealthTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.instance = TestBaseModel.objects.create(test_charfield="Hello")
+
     def test_modules_exists(self):
         for name in MODULES:
             module = f"django_htmx_base.{name}"
@@ -19,7 +23,5 @@ class HealthTestCase(TestCase):
             )
 
     def test_base_model_inheritance(self):
-        instance = TestBaseModel.objects.create(test_charfield="Hello")
-
-        self.assertIsNotNone(instance.id)
-        self.assertTrue(instance.is_active)
+        self.assertIsNotNone(self.instance.id)
+        self.assertTrue(self.instance.is_active)
