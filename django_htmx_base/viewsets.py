@@ -127,6 +127,11 @@ class GenericHtmxViewSet(
     form_class = None
     form_template_name = None
     formset = None
+    formset_can_delete = False
+    formset_max_num = None
+    formset_min_num = 1
+    formset_validate_max = False
+    formset_validate_min = 1
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -554,20 +559,32 @@ class HtmxViewSet(GenericHtmxViewSet):
 
         return self.form_class
 
-    def get_formset_class(self):
-        """Generates the FormSet class using modelformset_factory."""
-        form_base_class = self.get_form_class()
+    def get_formset_factory_kwargs(self):
+        """Constructs arguments dynamically for the factory function."""
+        return {
+            "can_delete": self.formset_can_delete,
+            "extra": self.extra_forms,
+            "form": self.get_form_class(),
+            "max_num": self.formset_max_num,
+            "min_num": self.formset_min_num,
+            "model": self.get_model(),
+            "validate_max": self.formset_validate_max,
+            "validate_min": self.formset_validate_min,
+        }
 
-        return modelformset_factory(
-            model=self.get_model(),
-            form=form_base_class,
-            extra=self.extra_forms
-        )
+    def get_formset_class(self):
+        """
+        Generates the FormSet class using modelformset_factory
+        dynamically with the Viewset's attributes.
+        """
+        kwargs = self.get_formset_factory_kwargs()
+        return modelformset_factory(**kwargs)
 
     def get_formset(self, **kwargs):
         """
         Dynamically constructs, configures, and instantiates the formset.
-        Handles object editing context, full updates (PUT), and partial updates (PATCH).
+        Handles object editing context,
+        full updates (PUT), and partial updates (PATCH).
         """
         resolved_form_class = self.get_form_class()
         model = self.get_model()
@@ -579,6 +596,9 @@ class HtmxViewSet(GenericHtmxViewSet):
             self.extra_forms = 1
         else:
             formset_queryset = self.get_queryset()
+
+        if self.action == HtmxAction.EDIT:
+            self.formset_can_delete = True
 
         default_kwargs = {
             "queryset": formset_queryset,
