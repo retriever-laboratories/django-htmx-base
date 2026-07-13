@@ -7,7 +7,7 @@ from tests.models import TestBaseModel
 MODULES = ["admin", "models", "routers", "urls", "views", "viewsets"]
 
 
-class HealthTestCase(TestCase):
+class AppTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.instance = TestBaseModel.objects.create(test_charfield="Hello")
@@ -25,3 +25,10 @@ class HealthTestCase(TestCase):
     def test_base_model_inheritance(self):
         self.assertIsNotNone(self.instance.id)
         self.assertTrue(self.instance.is_active)
+
+
+    def test_the_list_action_shows_the_objects(self):
+        response = self.client.get("/test-base-models/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Hello")
