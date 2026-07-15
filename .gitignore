@@ -12,6 +12,8 @@ wheels/
 *.egg-info/
 *.egg
 MANIFEST
+*.tar.gz
+*.whl
 
 # Unit test / coverage reports
 htmlcov/
@@ -39,10 +41,12 @@ staticfiles/
 # Environments
 .env
 .env.*
-.venv
+.venv/
 venv/
 env/
 ENV/
+.uv/
+uv.lock
 
 # IDEs and editors
 .vscode/
