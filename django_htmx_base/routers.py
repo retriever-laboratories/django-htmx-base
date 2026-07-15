@@ -66,6 +66,8 @@ class HtmxRouter:
         if basename is None:
             basename = self.get_default_basename(viewset)
 
+        viewset.router = self
+
         self.registry.append((prefix.strip("/"), viewset, basename))
 
     def get_default_basename(self, viewset):
