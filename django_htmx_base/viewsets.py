@@ -106,9 +106,9 @@ class GenericHtmxViewSet(
     detail_template_name = None
     form_template_name = None
     list_template_name = None
-    suffix_join = "_"
+    suffix_join = "-"
     use_app_templates = False
-    use_model_templates = False
+    use_model_templates = True
 
     # Context names configuration for list and object
     model_name = None
@@ -221,7 +221,7 @@ class GenericHtmxViewSet(
         """
         template_name = self._get_action_template_name()
         if template_name is not None:
-            return self._normalize_template_names(template_name)
+            return [template_name]
 
         suffix = self._get_action_template_name(default=True)
         if self.use_model_templates or self.use_app_templates:
@@ -230,24 +230,23 @@ class GenericHtmxViewSet(
             if not model:
                 raise ImproperlyConfigured(
                     "Cannot determine model for template name resolution. "
-                    "or disable use_model_templates and use_app_templates "
+                    "Disable use_model_templates and use_app_templates "
                     "in the viewset."
                 )
 
             app_label = model._meta.app_label
-            model_name = model._meta.verbose_name
-            if self.use_model_templates:
-                model_name += self.suffix_join
+            model_name = model._meta.model_name
 
-            names.append(
-                f"{app_label}"
-                + "/"
-                + f"{model_name if model_name else ''}"
-                + f"{suffix}.html"
-            )
+            if self.use_model_templates:
+                names.append(f"{app_label}/{model_name}/{suffix}.html")
+                names.append(f"{app_label}/{model_name}{self.suffix_join}{suffix}.html")
+
+            elif self.use_app_templates:
+                names.append(f"{app_label}/{suffix}.html")
+
             return names
 
-        return f"{suffix}.html"
+        return [f"{suffix}.html"]
 
     def _get_action_template_name(self, default=False):
         if self.action in self.list_actions:
@@ -350,12 +349,6 @@ class GenericHtmxViewSet(
                 route_name = f"{namespace}:{route_name}"
 
             return reverse(route_name, kwargs=kwargs)
-
-    def _normalize_template_names(self, names):
-        if names is None:
-            return []
-
-        return list(names)
 
     def _get_ordering_params(self, model):
         sortable_fields = self._get_sortable_fields(model)
