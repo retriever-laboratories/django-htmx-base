@@ -122,7 +122,7 @@ class GenericHtmxViewSet(
     paginate_by = settings.PAGINATE_BY if hasattr(settings, "PAGINATE_BY") else None
 
     # Form config
-    extra_forms = 0
+    extra_forms_default = 0
     form_actions = object_actions | {HtmxAction.CREATE}
     form_class = None
     form_template_name = None
@@ -131,7 +131,7 @@ class GenericHtmxViewSet(
     formset_max_num = None
     formset_min_num = 1
     formset_validate_max = False
-    formset_validate_min = 1
+    formset_validate_min = True
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -324,12 +324,23 @@ class GenericHtmxViewSet(
         try:
             return super().get_success_url()
         except ImproperlyConfigured:
-            if self.action in self.list_actions or self.action == HtmxAction.DELETE:
+            is_collection = isinstance(self.object, (list, tuple, set))
+
+            if (
+                self.action in self.list_actions
+                or self.action == HtmxAction.DELETE
+                or self.action == HtmxAction.CREATE and is_collection
+            ):
                 route_action = HtmxAction.LIST
                 kwargs = None
-            elif self.action in self.object_actions or self.action == HtmxAction.CREATE:
+
+            elif (
+                self.action in self.object_actions
+                or self.action == HtmxAction.CREATE
+            ):
                 route_action = HtmxAction.DETAIL
                 kwargs = {self.pk_url_kwarg: self.object.pk}
+
             else:
                 raise ImproperlyConfigured(
                     f"No success URL is available for the {self.action!r} action."
@@ -337,6 +348,7 @@ class GenericHtmxViewSet(
 
             route_name = f"{self.basename}-{route_action}"
             namespace = self.request.resolver_match.namespace
+
             if namespace:
                 route_name = f"{namespace}:{route_name}"
 
@@ -505,10 +517,14 @@ class HtmxViewSet(GenericHtmxViewSet):
 
     def process_formset(self):
         self.formset = self.get_formset()
+
         if self.formset.is_valid():
             instances = self.formset.save()
-            for obj in instances:
-                self.object = obj
+
+            if len(instances) == 1:
+                self.object = instances[0]
+            else:
+                self.object = instances
 
             return HttpResponseRedirect(self.get_success_url())
 
@@ -593,7 +609,6 @@ class HtmxViewSet(GenericHtmxViewSet):
             formset_queryset = self.get_queryset().filter(pk=self.object.pk)
         elif self.action == HtmxAction.CREATE:
             formset_queryset = model.objects.none()
-            self.extra_forms = 1
         else:
             formset_queryset = self.get_queryset()
 
@@ -625,3 +640,37 @@ class HtmxViewSet(GenericHtmxViewSet):
         )
 
         return FormSetClass(**default_kwargs)
+
+    @property
+    def url_names(self):
+        basename = getattr(self, "basename", None)
+        if not basename:
+            return {}
+
+        router = getattr(self, "router", None)
+        routes = getattr(router, "routes", []) if router else []
+        if not routes:
+            routes = getattr(self.__class__, "router_class", None) or []
+            routes = getattr(routes, "routes", [])
+
+        return_dict = {
+            str(route.name): f"{basename}-{route.name}"
+            for route in routes
+        }
+        return return_dict
+
+    @property
+    def extra_forms(self):
+        if self.request and self.request.method == "POST":
+            try:
+                return int(
+                    self.request.POST.get(
+                        "form-TOTAL_FORMS",
+                        self.extra_forms_default
+                    )
+                )
+
+            except (ValueError, TypeError):
+                pass
+
+        return self.extra_forms_default
