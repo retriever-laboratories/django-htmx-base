@@ -8,7 +8,6 @@ from django.urls import reverse
 # models
 from tests.models import TestBaseModel
 
-
 MODULES = ["admin", "models", "routers", "urls", "views", "viewsets"]
 
 
@@ -23,8 +22,7 @@ class FormsetTestHelper(TestCase):
         formset = view_instance.get_formset()
         initial_management_data = formset.management_form.initial
         prefixed_management_data = {
-            f"form-{key}": value 
-            for key, value in initial_management_data.items()
+            f"form-{key}": value for key, value in initial_management_data.items()
         }
         prefixed_management_data["form-TOTAL_FORMS"] = str(total_forms)
 
@@ -71,7 +69,6 @@ class AppTestCase(FormsetTestHelper, TestCase):
         self.assertFalse(formset.is_valid())
         self.assertEqual(response.status_code, 200)
 
-
     def test_single_formsets_post(self):
         url = reverse("testbasemodel-create")
         management_data = self.get_formset_management_data(url)
@@ -86,10 +83,7 @@ class AppTestCase(FormsetTestHelper, TestCase):
 
         new_instance = TestBaseModel.objects.latest("created_at")
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(
-            TestBaseModel.objects.count(),
-            initial_obj_count + 1
-        )
+        self.assertEqual(TestBaseModel.objects.count(), initial_obj_count + 1)
         self.assertEqual(new_instance.test_charfield, test_string)
 
     def test_multiple_formset_posts(self):
@@ -103,9 +97,6 @@ class AppTestCase(FormsetTestHelper, TestCase):
         }
 
         response = self.client.post(url, data=post_payload)
-        
+
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(
-            TestBaseModel.objects.count(),
-            initial_obj_count + 2
-        )
+        self.assertEqual(TestBaseModel.objects.count(), initial_obj_count + 2)
