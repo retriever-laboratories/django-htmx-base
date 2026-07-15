@@ -26,7 +26,6 @@ class AppTestCase(TestCase):
         self.assertIsNotNone(self.instance.id)
         self.assertTrue(self.instance.is_active)
 
-
     def test_the_list_action_shows_the_objects(self):
         response = self.client.get("/test-base-models/")
 
