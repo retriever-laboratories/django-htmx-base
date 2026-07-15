@@ -7,7 +7,7 @@ class WidgetStylerMixin:
     textarea_class = "form-control input-textarea"
     select_class = "form-select"
     checkbox_class = "form-check-input"
-    
+
     text_attrs = {"autocomplete": "off"}
     textarea_attrs = {"rows": 3}
     select_attrs = {}
@@ -25,14 +25,16 @@ class WidgetStylerMixin:
 
         for field in self.fields.values():
             widget_type = type(field.widget)
-            
+
             if widget_type in widget_mapping:
                 css_class, default_attrs = widget_mapping[widget_type]
-                
+
                 if css_class:
                     existing_classes = field.widget.attrs.get("class", "")
-                    field.widget.attrs["class"] = f"{existing_classes} {css_class}".strip()
-                
+                    field.widget.attrs["class"] = (
+                        f"{existing_classes} {css_class}".strip()
+                    )
+
                 if default_attrs:
                     updated_attrs = {**default_attrs, **field.widget.attrs}
                     field.widget.attrs.update(updated_attrs)

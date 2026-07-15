@@ -8,9 +8,7 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.paginator import Paginator
 from django.db import models
-from django.forms import Form
 from django.forms import modelformset_factory
-from django.forms import models as model_forms
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.http import QueryDict
@@ -22,11 +20,11 @@ from django.views.generic.base import TemplateResponseMixin
 from django.views.generic.edit import ModelFormMixin
 from django.views.generic.list import MultipleObjectMixin
 
-# models
-from django_htmx_base.models import FilterInputType
-
 # forms
 from django_htmx_base.forms import BaseModelForm
+
+# models
+from django_htmx_base.models import FilterInputType
 
 
 def action(methods=None, detail=None, url_path=None, url_name=None):
@@ -329,15 +327,12 @@ class GenericHtmxViewSet(
             if (
                 self.action in self.list_actions
                 or self.action == HtmxAction.DELETE
-                or self.action == HtmxAction.CREATE and is_collection
+                or (self.action == HtmxAction.CREATE and is_collection)
             ):
                 route_action = HtmxAction.LIST
                 kwargs = None
 
-            elif (
-                self.action in self.object_actions
-                or self.action == HtmxAction.CREATE
-            ):
+            elif self.action in self.object_actions or self.action == HtmxAction.CREATE:
                 route_action = HtmxAction.DETAIL
                 kwargs = {self.pk_url_kwarg: self.object.pk}
 
@@ -547,7 +542,7 @@ class HtmxViewSet(GenericHtmxViewSet):
 
     def get_form_class(self):
         """
-        Returns the form class to use. Falls back to a dynamically 
+        Returns the form class to use. Falls back to a dynamically
         configured BaseModelForm if self.form_class is not set.
         """
 
@@ -561,11 +556,9 @@ class HtmxViewSet(GenericHtmxViewSet):
             "fields": "__all__",
         }
 
-        MetaClass = type("Meta", (object,), meta_attributes)
+        meta_class = type("Meta", (object,), meta_attributes)
 
-        form_attributes = {
-            "Meta": MetaClass
-        }
+        form_attributes = {"Meta": meta_class}
 
         self.form_class = type(
             "DynamicModelForm",
@@ -620,10 +613,12 @@ class HtmxViewSet(GenericHtmxViewSet):
         }
 
         if self.request.method in ("POST", "PUT", "PATCH"):
-            default_kwargs.update({
-                "data": self.request.POST,
-                "files": self.request.FILES,
-            })
+            default_kwargs.update(
+                {
+                    "data": self.request.POST,
+                    "files": self.request.FILES,
+                }
+            )
 
         form_kwargs = {}
         if self.request.method == "PATCH":
@@ -633,13 +628,11 @@ class HtmxViewSet(GenericHtmxViewSet):
         default_kwargs.setdefault("form_kwargs", {})
         default_kwargs["form_kwargs"].update(form_kwargs)
 
-        FormSetClass = modelformset_factory(
-            model=model,
-            form=resolved_form_class,
-            extra=self.extra_forms
+        formset_class = modelformset_factory(
+            model=model, form=resolved_form_class, extra=self.extra_forms
         )
 
-        return FormSetClass(**default_kwargs)
+        return formset_class(**default_kwargs)
 
     @property
     def url_names(self):
@@ -653,10 +646,7 @@ class HtmxViewSet(GenericHtmxViewSet):
             routes = getattr(self.__class__, "router_class", None) or []
             routes = getattr(routes, "routes", [])
 
-        return_dict = {
-            str(route.name): f"{basename}-{route.name}"
-            for route in routes
-        }
+        return_dict = {str(route.name): f"{basename}-{route.name}" for route in routes}
         return return_dict
 
     @property
@@ -664,10 +654,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         if self.request and self.request.method == "POST":
             try:
                 return int(
-                    self.request.POST.get(
-                        "form-TOTAL_FORMS",
-                        self.extra_forms_default
-                    )
+                    self.request.POST.get("form-TOTAL_FORMS", self.extra_forms_default)
                 )
 
             except (ValueError, TypeError):

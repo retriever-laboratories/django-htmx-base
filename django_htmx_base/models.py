@@ -43,6 +43,7 @@ class BaseModel(models.Model):
     """
     Abstract base for all models
     """
+
     # fields
     created_at = BaseField(
         models.DateTimeField, auto_now_add=True, editable=False, sortable=True
