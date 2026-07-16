@@ -222,6 +222,7 @@ class GenericHtmxViewSet(
             }
 
         context["model"] = self.get_model()
+        context["model_name"] = model_name
 
         if model_list_name:
             context[model_list_name] = queryset
@@ -315,9 +316,9 @@ class GenericHtmxViewSet(
         restricted_params = {"o", "page", "page_size"}
 
         filters_params = [
-            param for param in self.request.GET.lists()
-            if param[0] not in restricted_params
-            and param[0] in filtrable_fields
+            param
+            for param in self.request.GET.lists()
+            if param[0] not in restricted_params and param[0] in filtrable_fields
         ]
 
         for filter_param, values in filters_params:
