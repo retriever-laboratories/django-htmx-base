@@ -667,14 +667,16 @@ class HtmxViewSet(GenericHtmxViewSet):
     @property
     def url_names(self):
         basename = getattr(self, "basename", None)
+
         if not basename:
             return {}
 
         router = getattr(self, "router", None)
-        routes = getattr(router, "routes", []) if router else []
-        if not routes:
-            routes = getattr(self.__class__, "router_class", None) or []
-            routes = getattr(routes, "routes", [])
+
+        if not router:
+            return {}
+
+        routes = router.get_routes(self) if router else []
 
         return_dict = {str(route.name): f"{basename}-{route.name}" for route in routes}
         return return_dict
