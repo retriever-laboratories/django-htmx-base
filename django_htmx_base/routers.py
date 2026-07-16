@@ -118,7 +118,9 @@ class HtmxRouter:
         routes = []
 
         for extra_action in viewset.get_extra_actions():
-            url = extra_action.url_path
+            url_path = getattr(extra_action, 'url_path', None)
+            url = url_path or extra_action.__name__
+
             if extra_action.detail:
                 url = "{pk}/%s" % url
 
