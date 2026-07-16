@@ -27,12 +27,17 @@ from django_htmx_base.forms import BaseModelForm
 from django_htmx_base.models import FilterInputType
 
 
-def action(methods=None, detail=None, url_path=None, url_name=None):
+def action(
+    methods=None, detail=None, url_path=None, url_name=None, is_custom_action=True
+):
     if detail is None:
         raise TypeError("The detail argument must be provided.")
 
     if not isinstance(detail, bool):
         raise TypeError("The detail argument must be True or False.")
+
+    if not isinstance(is_custom_action, bool):
+        raise TypeError("The is_custom_action argument must be True or False.")
 
     if methods is None:
         methods = ["get"]
@@ -49,7 +54,7 @@ def action(methods=None, detail=None, url_path=None, url_name=None):
         func.detail = detail
         func.url_path = url_path or func.__name__
         func.url_name = url_name or func.__name__
-        func.is_custom_action = True
+        func.is_custom_action = is_custom_action
         return func
 
     return decorator
@@ -551,7 +556,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         context = self.get_context_data()
         return self.render_to_response(context)
 
-    @action(methods=["get"], detail=False, is_custom_action=True)
+    @action(methods=["get"], detail=False)
     def download(self, request):  # noqa: ARG002
 
         queryset = self.get_queryset()
