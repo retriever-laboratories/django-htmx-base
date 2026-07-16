@@ -135,23 +135,33 @@ class GenericHtmxViewSet(
         queryset = super().get_queryset()
         return self.filter_queryset(queryset, self.get_model())
 
-    def get_model_name(self, queryset=None, obj=None):
+    def get_model_name(self, obj=None):
         """
         Consolidated context object name retrieval for both list and object actions.
         """
-        if obj is not None:
-            if self.model_name:
-                return self.model_name
-            if isinstance(obj, models.Model):
-                return obj._meta.model_name
+        if self.model_name:
+            return self.model_name
+
+        if obj is not None and isinstance(obj, models.Model):
+            return obj._meta.model_name
+
+        model = self.get_model()
+        if model is not None:
+            return self.model._meta.model_name
+
+        return None
+
+    def get_model_list_name(self, queryset=None):
+        if self.context_object_list_name:
+            return self.context_object_list_name
 
         if queryset is not None:
-            if self.context_object_list_name:
-                return self.context_object_list_name
             if hasattr(queryset, "model"):
                 return "%s_list" % queryset.model._meta.model_name
 
-        return None
+        model = self.get_model()
+        if model is not None:
+            return "%s_list" % model._meta.model_name
 
     def get_context_data(self, queryset=None, obj=None, **kwargs):
         """
@@ -175,6 +185,10 @@ class GenericHtmxViewSet(
             context.update({"formset": self.formset})
 
         context.update(kwargs)
+
+        if "model_name" not in context.keys():
+            context["model_name"] = self.get_model_name()
+
         return ContextMixin.get_context_data(self, **context)
 
     def get_list_context_data(self, queryset=None):
@@ -185,7 +199,8 @@ class GenericHtmxViewSet(
             queryset = self.queryset
 
         page_size = self.get_paginate_by()
-        model_name = self.get_model_name(queryset=queryset)
+        model_name = self.get_model_name()
+        model_list_name = self.get_model_list_name(queryset=queryset)
 
         if page_size:
             paginator, page, queryset, is_paginated = self.paginate_queryset(
@@ -208,8 +223,8 @@ class GenericHtmxViewSet(
 
         context["model"] = self.get_model()
 
-        if model_name is not None:
-            context[model_name] = queryset
+        if model_list_name:
+            context[model_list_name] = queryset
 
         return context
 
@@ -219,6 +234,7 @@ class GenericHtmxViewSet(
         model_name = self.get_model_name(obj=obj)
         if model_name:
             context[model_name] = obj
+            context["model_name"] = model_name
             context["model"] = self.get_model()
         return context
 
@@ -287,7 +303,11 @@ class GenericHtmxViewSet(
         return self.paginate_by
 
     def filter_queryset(self, queryset, model):
+        if not self.request:
+            return queryset
+
         filtrable_fields = self.get_filtrable_fields(model)
+
         if not filtrable_fields:
             return queryset
 
@@ -295,17 +315,19 @@ class GenericHtmxViewSet(
         restricted_params = {"o", "page", "page_size"}
 
         filters_params = [
-            param
-            for param in self.request.GET.lists()
-            if param[0] not in restricted_params and param[0] in filtrable_fields
+            param for param in self.request.GET.lists()
+            if param[0] not in restricted_params
+            and param[0] in filtrable_fields
         ]
 
         for filter_param, values in filters_params:
             values = [value for value in values if value]
+
             if not values:
                 continue
 
             filter_input_type = filtrable_fields[filter_param]
+
             if filter_input_type == FilterInputType.TEXT:
                 filters[f"{filter_param}__icontains"] = values[-1]
             elif len(values) == 1:
@@ -342,10 +364,12 @@ class GenericHtmxViewSet(
                 )
 
             route_name = f"{self.basename}-{route_action}"
-            namespace = self.request.resolver_match.namespace
 
-            if namespace:
-                route_name = f"{namespace}:{route_name}"
+            if self.request:
+                namespace = self.request.resolver_match.namespace
+
+                if namespace:
+                    route_name = f"{namespace}:{route_name}"
 
             return reverse(route_name, kwargs=kwargs)
 
@@ -526,7 +550,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         context = self.get_context_data()
         return self.render_to_response(context)
 
-    @action(methods=["get"], detail=False)
+    @action(methods=["get"], detail=False, is_custom_action=True)
     def download(self, request):  # noqa: ARG002
 
         queryset = self.get_queryset()
