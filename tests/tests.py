@@ -100,3 +100,17 @@ class AppTestCase(FormsetTestHelper, TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(TestBaseModel.objects.count(), initial_obj_count + 2)
+
+    def test_download_extra_action(self):
+        url = reverse("testbasemodel-download")
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.headers["Content-Type"],
+            "text/csv",
+        )
+        self.assertEqual(
+            response.headers["Content-Disposition"],
+            f"attachment; filename='{self.instance._meta.model.__name__}.csv'",
+        )
