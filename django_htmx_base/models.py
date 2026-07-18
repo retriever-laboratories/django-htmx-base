@@ -57,7 +57,7 @@ class BaseModel(models.Model):
     )
 
     # view attributes
-    _display_fields = ("id", "created_at", "is_active")
+    _display_fields = ["id", "created_at", "is_active"]
     _downloadable = True
 
     class Meta:
@@ -90,7 +90,7 @@ class BaseModel(models.Model):
                 ).value,
             }
 
-            if field.choices:
+            if hasattr(field, "choices") and field.choices:
                 filter_config["options"] = [
                     {"value": value, "label": label}
                     for value, label in field.choices

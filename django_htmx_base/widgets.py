@@ -3,6 +3,8 @@ from django import forms
 
 
 class WidgetStylerMixin:
+    fields: dict[str, forms.Field]
+
     text_class = "form-control input-text"
     textarea_class = "form-control input-textarea"
     select_class = "form-select"
