@@ -2,6 +2,8 @@
 import inspect
 from enum import StrEnum
 from functools import update_wrapper
+from typing import Any
+from typing import cast
 
 # django
 from django.conf import settings
@@ -20,10 +22,14 @@ from django.views.generic.base import TemplateResponseMixin
 from django.views.generic.edit import ModelFormMixin
 from django.views.generic.list import MultipleObjectMixin
 
+# external
+from django_htmx.middleware import HtmxDetails
+
 # forms
 from django_htmx_base.forms import BaseModelForm
 
 # models
+from django_htmx_base.models import BaseModel
 from django_htmx_base.models import FilterInputType
 
 
@@ -85,14 +91,17 @@ class GenericHtmxViewSet(
     - get_template_names
     """
 
+    action = None
+    action_map = None
+    route_detail = None
+    basename = None
     allow_empty = True
     content_type = None
     initial = {}
-    model = None
+    model: type[BaseModel] | None = None
     object = None
-    ordering = None
     page_kwarg = "page"
-    paginate_by = None
+    paginate_by = 10
     paginate_orphans = 0
     paginator_class = Paginator
     pk_url_kwarg = "pk"
@@ -127,7 +136,7 @@ class GenericHtmxViewSet(
     # Form config
     extra_forms_default = 0
     form_actions = object_actions | {HtmxAction.CREATE}
-    form_class = None
+    form_class = BaseModelForm
     form_template_name = None
     formset = None
     formset_can_delete = False
@@ -152,7 +161,7 @@ class GenericHtmxViewSet(
 
         model = self.get_model()
         if model is not None:
-            return self.model._meta.model_name
+            return model._meta.model_name
 
         return None
 
@@ -168,23 +177,26 @@ class GenericHtmxViewSet(
         if model is not None:
             return "%s_list" % model._meta.model_name
 
-    def get_context_data(self, queryset=None, obj=None, **kwargs):
+    def get_context_data(self, *, object_list=None, **kwargs):
         """
         Consolidated context data preparation for the different action types
         """
-        context = {}
+        context: dict[str, Any] = {}
 
         if self.action in self.list_actions:
-            object_list = queryset if queryset is not None else self.get_queryset()
+            object_list = (
+                object_list if object_list is not None else self.get_queryset()
+            )
             if object_list is not None:
-                context.update(self.get_list_context_data(object_list))
+                self.get_list_context_data(context, object_list)
 
         if self.action in self.object_actions:
-            if not obj:
-                obj = self.object or self.get_object()
+            if not self.object:
+                obj = self.get_object()
 
             if obj and obj is not None:
-                context.update(self.get_object_context_data(obj))
+                self.object = obj
+                self.get_object_context_data(context, obj)
 
         if self.action in self.form_actions and "formset" not in kwargs:
             context.update({"formset": self.formset})
@@ -196,14 +208,14 @@ class GenericHtmxViewSet(
 
         return ContextMixin.get_context_data(self, **context)
 
-    def get_list_context_data(self, queryset=None):
+    def get_list_context_data(self, context, queryset=None):
         """
         Set context variables for list actions, including pagination if applicable.
         """
         if queryset is None:
             queryset = self.queryset
 
-        page_size = self.get_paginate_by()
+        page_size = self.get_paginate_by(queryset)
         model_name = self.get_model_name()
         model_list_name = self.get_model_list_name(queryset=queryset)
 
@@ -212,19 +224,23 @@ class GenericHtmxViewSet(
                 queryset,
                 page_size,
             )
-            context = {
-                "paginator": paginator,
-                "page_obj": page,
-                "is_paginated": is_paginated,
-                "object_list": queryset,
-            }
+            context.update(
+                {
+                    "paginator": paginator,
+                    "page_obj": page,
+                    "is_paginated": is_paginated,
+                    "object_list": queryset,
+                }
+            )
         else:
-            context = {
-                "paginator": None,
-                "page_obj": None,
-                "is_paginated": False,
-                "object_list": queryset,
-            }
+            context.update(
+                {
+                    "paginator": None,
+                    "page_obj": None,
+                    "is_paginated": False,
+                    "object_list": queryset,
+                }
+            )
 
         context["model"] = self.get_model()
         context["model_name"] = model_name
@@ -234,9 +250,9 @@ class GenericHtmxViewSet(
 
         return context
 
-    def get_object_context_data(self, obj):
+    def get_object_context_data(self, context, obj):
         """Set context variables for single object actions."""
-        context = {"object": obj}
+        context.update({"object": obj})
         model_name = self.get_model_name(obj=obj)
         if model_name:
             context[model_name] = obj
@@ -254,7 +270,7 @@ class GenericHtmxViewSet(
             return [template_name]
 
         if self.is_htmx_partial():
-            template_name = self.request.htmx.trigger_name
+            template_name = self.htmx.trigger_name
             if template_name:
                 return [template_name]
 
@@ -298,15 +314,19 @@ class GenericHtmxViewSet(
 
     def is_htmx_partial(self):
         return (
-            self.request.htmx
-            and self.request.htmx.trigger_name
-            and not self.request.htmx.boosted
+            self.htmx
+            and self.htmx.trigger_name
+            and not self.htmx.boosted
             and self.action == HtmxAction.LIST
         )
 
-    def get_paginate_by(self):
-        self.paginate_by = self.request.GET.get("page_size", self.paginate_by)
-        return self.paginate_by
+    def get_paginate_by(self, queryset):
+        page_size = self.request.GET.get("page_size")
+
+        if page_size:
+            self.paginate_by = int(page_size)
+
+        return super().get_paginate_by(queryset)
 
     def filter_queryset(self, queryset, model):
         if not self.request:
@@ -317,7 +337,7 @@ class GenericHtmxViewSet(
         if not filtrable_fields:
             return queryset
 
-        filters = {}
+        filters: dict[str, Any] = {}
         restricted_params = {"o", "page", "page_size"}
 
         filters_params = [
@@ -382,17 +402,17 @@ class GenericHtmxViewSet(
     def get_ordering_params(self, model):
         sortable_fields = self.get_sortable_fields(model)
         if not sortable_fields:
-            return ()
+            return []
 
         ordering_list = self.request.GET.getlist("o")
-        ordering = [x for x in ordering_list if x]
-        return [x for x in ordering if x.lstrip("-") in sortable_fields]
+        raw_ordering = [x for x in ordering_list if x]
+        return [x for x in raw_ordering if x.lstrip("-") in sortable_fields]
 
     def get_sortable_fields(self, model):
         if model is None or not hasattr(model, "sortable_fields"):
-            return set()
+            return []
 
-        return set(model.sortable_fields())
+        return model.sortable_fields()
 
     def get_filtrable_fields(self, model):
         if model is None or not hasattr(model, "get_filtrable_fields"):
@@ -415,7 +435,9 @@ class GenericHtmxViewSet(
         if queryset is not None and hasattr(queryset, "model"):
             return queryset.model
 
-        return None
+        raise ImproperlyConfigured(
+            f"Class {self.__class__.__name__} 'model' or 'queryset' is required."
+        )
 
     def get_request_data(self):
         if self.request.method == "POST":
@@ -426,6 +448,10 @@ class GenericHtmxViewSet(
             return QueryDict(self.request.body, encoding=self.request.encoding)
 
         return QueryDict(encoding=self.request.encoding)
+
+    @property
+    def htmx(self):
+        return getattr(self.request, "htmx", cast(HtmxDetails, None))
 
 
 class HtmxViewSet(GenericHtmxViewSet):
@@ -479,11 +505,11 @@ class HtmxViewSet(GenericHtmxViewSet):
 
             return self.dispatch(request, *args, **kwargs)
 
-        view.view_class = cls
-        view.view_initkwargs = initkwargs
-        view.actions = actions
+        setattr(view, "view_class", cls)
+        setattr(view, "view_initkwargs", initkwargs)
+        setattr(view, "actions", actions)
 
-        update_wrapper(view, cls, updated=())
+        update_wrapper(view, cast(Any, cls), updated=())
         update_wrapper(view, cls.dispatch, assigned=())
         return view
 
@@ -504,7 +530,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         if self.action in self.form_actions:
             self.formset = self.get_formset()
 
-        self.context = self.get_context_data(obj=self.object, **kwargs)
+        self.context = self.get_context_data(**kwargs)
         return super().dispatch(request, *args, **kwargs)
 
     def register_custom_action(self, handler_action):
@@ -533,7 +559,7 @@ class HtmxViewSet(GenericHtmxViewSet):
             return self.process_formset()
 
     def edit(self, request, *args, **kwargs):  # noqa: ARG002
-        return self.process_form()
+        return self.process_formset()
 
     def destroy(self, request, *args, **kwargs):  # noqa: ARG002
         success_url = self.get_success_url()
@@ -576,7 +602,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         configured BaseModelForm if self.form_class is not set.
         """
 
-        if self.form_class:
+        if self.form_class is not BaseModelForm:
             return self.form_class
 
         model = self.get_model()
@@ -590,11 +616,13 @@ class HtmxViewSet(GenericHtmxViewSet):
 
         form_attributes = {"Meta": meta_class}
 
-        self.form_class = type(
+        dynamic_form = type(
             "DynamicModelForm",
             (BaseModelForm,),
             form_attributes,
         )
+
+        self.form_class = cast(type[BaseModelForm], dynamic_form)
 
         return self.form_class
 
@@ -616,8 +644,8 @@ class HtmxViewSet(GenericHtmxViewSet):
         Generates the FormSet class using modelformset_factory
         dynamically with the Viewset's attributes.
         """
-        kwargs = self.get_formset_factory_kwargs()
-        return modelformset_factory(**kwargs)
+        kwargs: dict[str, Any] = self.get_formset_factory_kwargs()
+        return modelformset_factory(self.get_model(), **kwargs)
 
     def get_formset(self, **kwargs):
         """
@@ -638,7 +666,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         if self.action == HtmxAction.EDIT:
             self.formset_can_delete = True
 
-        default_kwargs = {
+        default_kwargs: dict[str, Any] = {
             "queryset": formset_queryset,
         }
 
@@ -656,7 +684,7 @@ class HtmxViewSet(GenericHtmxViewSet):
 
         default_kwargs.update(kwargs)
         default_kwargs.setdefault("form_kwargs", {})
-        default_kwargs["form_kwargs"].update(form_kwargs)
+        default_kwargs["form_kwargs"].update(**form_kwargs)
 
         formset_class = modelformset_factory(
             model=model, form=resolved_form_class, extra=self.extra_forms
