@@ -602,29 +602,12 @@ class HtmxViewSet(GenericHtmxViewSet):
         configured BaseModelForm if self.form_class is not set.
         """
 
-        if self.form_class is not BaseModelForm:
+        if self.form_class is not None:
             return self.form_class
 
-        model = self.get_model()
-
-        meta_attributes = {
-            "model": model,
-            "fields": "__all__",
-        }
-
-        meta_class = type("Meta", (object,), meta_attributes)
-
-        form_attributes = {"Meta": meta_class}
-
-        dynamic_form = type(
-            "DynamicModelForm",
-            (BaseModelForm,),
-            form_attributes,
+        raise ImproperlyConfigured(
+            f"Class {self.__class__.__name__} 'form_class' is required."
         )
-
-        self.form_class = cast(type[BaseModelForm], dynamic_form)
-
-        return self.form_class
 
     def get_formset_factory_kwargs(self):
         """Constructs arguments dynamically for the factory function."""

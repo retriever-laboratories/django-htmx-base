@@ -17,9 +17,7 @@ class FormsetTestHelper(TestCase):
         Performs a dynamic GET request to fetch the root view
         formset configuration.
         """
-        response = self.client.get(url)
-        view_instance = response.context["view"]
-        formset = view_instance.get_formset()
+        formset = self.get_formset(url)
         initial_management_data = formset.management_form.initial
         prefixed_management_data = {
             f"form-{key}": value for key, value in initial_management_data.items()
@@ -27,6 +25,14 @@ class FormsetTestHelper(TestCase):
         prefixed_management_data["form-TOTAL_FORMS"] = str(total_forms)
 
         return prefixed_management_data
+
+    def get_view_instance(self, url):
+        response = self.client.get(url)
+        return response.context["view"]
+
+    def get_formset(self, url):
+        view_instance = self.get_view_instance(url)
+        return view_instance.get_formset()
 
 
 class AppTestCase(FormsetTestHelper, TestCase):
@@ -114,3 +120,9 @@ class AppTestCase(FormsetTestHelper, TestCase):
             response.headers["Content-Disposition"],
             f"attachment; filename='{self.instance._meta.model.__name__}.csv'",
         )
+
+    def test_custom_form_create(self):
+        url = reverse("testform-create")
+        view_instance = self.get_view_instance(url)
+        form_class = view_instance.form_class
+        self.assertNotIn("is_active", form_class._meta.fields)
