@@ -12,6 +12,9 @@ class BaseForm(WidgetStylerMixin, forms.Form):
 
 
 class BaseModelForm(WidgetStylerMixin, forms.ModelForm):
+    class Meta:
+        fields = "__all__"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.apply_widget_styles()
