@@ -10,7 +10,7 @@ dependencies = [
 	"django-htmx>=1.27.0",
 ]
 description = "A collection of classes and abstract models for django + htmx projects"
-readme = "README.rst"
+readme = "README.md"
 keywords = [
 	"Django",
 	"HTMX",
@@ -39,6 +39,9 @@ classifiers = [
 
 [project.urls]
 Repository = "https://github.com/retriever-laboratories/django-htmx-base"
+
+[tool.setuptools.packages.find]
+include = ["django_htmx_base*"]
 
 [dependency-groups]
 dev = [
