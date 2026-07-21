@@ -9,11 +9,13 @@ class WidgetStylerMixin:
     textarea_class = "form-control input-textarea"
     select_class = "form-select"
     checkbox_class = "form-check-input"
+    radio_class = "form-check-input"
 
     text_attrs = {"autocomplete": "off"}
     textarea_attrs = {"rows": 3}
     select_attrs = {}
     checkbox_attrs = {}
+    radio_attrs = {}
 
     def apply_widget_styles(self):
         """Applies classes and attrs to form fields."""
@@ -23,6 +25,7 @@ class WidgetStylerMixin:
             forms.Textarea: (self.textarea_class, self.textarea_attrs),
             forms.Select: (self.select_class, self.select_attrs),
             forms.CheckboxInput: (self.checkbox_class, self.checkbox_attrs),
+            forms.RadioSelect: (self.radio_class, self.radio_attrs),
         }
 
         for field in self.fields.values():
