@@ -17,7 +17,6 @@ if not git_tag:
     print("::error::RELEASE_TAG environment variable is not set")
     sys.exit(1)
 
-# Clean "v" prefix if present (e.g., v1.2.3 -> 1.2.3)
 cleaned_tag = git_tag.removeprefix("v")
 
 print(f"Detected pyproject.toml version: {project_version}")
