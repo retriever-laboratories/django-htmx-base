@@ -21,6 +21,40 @@ jobs:
       - name: Install the latest version of uv
         uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
 
+      - name: Check version matches release tag
+        if: github.event_name == 'release'
+        shell: python
+        run: |
+          import os
+          import sys
+          import tomllib
+
+          # Read pyproject.toml
+          with open("pyproject.toml", "rb") as f:
+              data = tomllib.load(f)
+
+          # Extract version from uv project configuration
+          project_version = data.get("project", {}).get("version")
+
+          if not project_version:
+              print("::error::Could not find [project.version] in pyproject.toml")
+              sys.exit(1)
+
+          # Get Release Tag from GitHub Event Context
+          git_tag = "${{ github.event.release.tag_name }}"
+
+          # Clean "v" prefix if present (e.g., v1.2.3 -> 1.2.3)
+          cleaned_tag = git_tag.lstrip("v")
+
+          print(f"Detected pyproject.toml version: {project_version}")
+          print(f"Detected Release Tag: {git_tag} (Normalized: {cleaned_tag})")
+
+          if project_version != cleaned_tag:
+              print(f"::error::Version mismatch! pyproject.toml version ({project_version}) does not match Release tag ({git_tag}). Aborting build.")
+              sys.exit(1)
+
+          print("Success: Version and Tag match!")
+
       - name: Build sdist and wheel
         run: uv build
 
