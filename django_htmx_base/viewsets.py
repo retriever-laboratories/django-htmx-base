@@ -546,6 +546,20 @@ class HtmxViewSet(GenericHtmxViewSet):
         else:
             self.list_actions.add(self.action)
 
+    def set_formset_action_owner(self, formset):
+        user = getattr(self.request, "user", None)
+        if not user or not getattr(user, "is_authenticated", False):
+            return formset
+
+        user = self.request.user
+        for form in formset:
+            if hasattr(form.instance, "created_by") and not form.instance.pk:
+                form.instance.created_by = user
+            if hasattr(form.instance, "updated_by"):
+                form.instance.updated_by = user
+
+        return formset
+
     def list(self, request, *args, **kwargs):  # noqa: ARG002
         return self.render_to_response(self.context)
 
@@ -567,7 +581,8 @@ class HtmxViewSet(GenericHtmxViewSet):
         return HttpResponseRedirect(success_url)
 
     def process_formset(self):
-        self.formset = self.get_formset()
+        formset = self.get_formset()
+        self.formset = self.set_formset_action_owner(formset)
 
         if self.formset.is_valid():
             instances = self.formset.save()
