@@ -61,12 +61,13 @@ from django.db import models
 from django.urls import reverse
 from django_htmx_base.models import BaseModel
 
+
 class Product(BaseModel):
     name = models.CharField(max_length=256, unique=True)
     description = models.TextField(blank=True)
 
     class Meta:
-        ordering = ['-id']
+        ordering = ["-id"]
 ```
 
 Execute your migrations normally inside your primary project environment:
@@ -85,11 +86,13 @@ Combine viewsets and routers to eliminate boilerplate URL configurations and aut
 from django_htmx_base.viewsets import GenericHtmxViewSet
 from .models import Product
 
+
 class ProductViewSet(GenericHtmxViewSet):
     """
-    Handles standard CRUD actions and automatically provides 
+    Handles standard CRUD actions and automatically provides
     the `view.url_names` context object to your templates.
     """
+
     model = Product
 ```
 
@@ -129,9 +132,9 @@ For a viewset handling a `Product` model inside a `products` app, the engine sea
 ```python
 class ProductViewSet(GenericHtmxViewSet):
     model = Product
-    
+
     # Optional: Enable the generic app-level fallback template
-    use_app_templates = True 
+    use_app_templates = True
 ```
 
 Expose standard execution paths seamlessly to your user interface templates via integrated property-driven attributes:
