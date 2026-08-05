@@ -529,7 +529,8 @@ class HtmxViewSet(GenericHtmxViewSet):
             self.object = self.get_object()
 
         if self.action in self.form_actions:
-            self.formset = self.get_formset()
+            formset = self.get_formset()
+            self.formset = self.set_formset_action_owner(formset)
 
         self.context = self.get_context_data(**kwargs)
         return super().dispatch(request, *args, **kwargs)
