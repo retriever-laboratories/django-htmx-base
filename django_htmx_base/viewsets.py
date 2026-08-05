@@ -191,7 +191,8 @@ class GenericHtmxViewSet(
                 self.get_list_context_data(context, object_list)
 
         if self.action in self.object_actions:
-            if not self.object:
+            obj = self.object
+            if not obj:
                 obj = self.get_object()
 
             if obj and obj is not None:
