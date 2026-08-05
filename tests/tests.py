@@ -2,11 +2,13 @@
 import importlib.util
 
 # django
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
 # models
 from tests.models import TestBaseModel
+from tests.models import TestBaseModelUserTracked
 
 MODULES = ["admin", "models", "routers", "urls", "views", "viewsets"]
 
@@ -126,3 +128,69 @@ class AppTestCase(FormsetTestHelper, TestCase):
         view_instance = self.get_view_instance(url)
         form_class = view_instance.form_class
         self.assertNotIn("is_active", form_class._meta.fields)
+
+
+class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="test-user",
+            password="test-password",
+        )
+        self.client.force_login(self.user)
+
+    def test_user_tracked_formset_post(self):
+        url = reverse("testbasemodelusertracked-create")
+        management_data = self.get_formset_management_data(url)
+        post_payload = {
+            **management_data,
+            "form-0-test_charfield": "User tracked string",
+        }
+
+        response = self.client.post(url, data=post_payload)
+
+        new_instance = TestBaseModelUserTracked.objects.latest("created_at")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(new_instance.created_by, self.user)
+        self.assertEqual(new_instance.updated_by, self.user)
+
+    def test_user_tracked_formset_post_ignores_anonymous_user(self):
+        self.client.logout()
+        url = reverse("testbasemodelusertracked-create")
+        management_data = self.get_formset_management_data(url)
+        post_payload = {
+            **management_data,
+            "form-0-test_charfield": "Anonymous user string",
+        }
+
+        response = self.client.post(url, data=post_payload)
+
+        new_instance = TestBaseModelUserTracked.objects.latest("created_at")
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(new_instance.created_by)
+        self.assertIsNone(new_instance.updated_by)
+
+    def test_user_tracked_formset_edit_only_updates_updated_by(self):
+        original_user = get_user_model().objects.create_user(
+            username="original-user",
+            password="test-password",
+        )
+        instance = TestBaseModelUserTracked.objects.create(
+            test_charfield="Original string",
+            created_by=original_user,
+            updated_by=original_user,
+        )
+        url = reverse("testbasemodelusertracked-edit", kwargs={"pk": instance.pk})
+        management_data = self.get_formset_management_data(url)
+        post_payload = {
+            **management_data,
+            "form-0-id": instance.pk,
+            "form-0-test_charfield": "Updated string",
+        }
+
+        response = self.client.post(url, data=post_payload)
+
+        instance.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(instance.test_charfield, "Updated string")
+        self.assertEqual(instance.created_by, original_user)
+        self.assertEqual(instance.updated_by, self.user)
