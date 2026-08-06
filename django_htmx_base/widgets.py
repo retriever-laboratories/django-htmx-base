@@ -39,4 +39,8 @@ class WidgetStylerMixin:
 
                 if default_attrs:
                     updated_attrs = {**default_attrs, **field.widget.attrs}
+
+                    if field.required:
+                        updated_attrs["required"] = "true"
+
                     field.widget.attrs.update(updated_attrs)
