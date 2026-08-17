@@ -51,6 +51,24 @@ class BaseModel(models.Model):
         models.DateTimeField, auto_now_add=True, editable=False, sortable=True
     )
     updated_at = BaseField(models.DateTimeField, auto_now=True, editable=False)
+    created_by = BaseField(
+        models.ForeignKey,
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="%(app_label)s_%(class)s_created_set",
+    )
+    updated_by = BaseField(
+        models.ForeignKey,
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="%(app_label)s_%(class)s_updated_set",
+    )
     is_active = BaseField(
         models.BooleanField,
         default=True,
@@ -210,33 +228,3 @@ class BaseModel(models.Model):
     @classmethod
     def is_downloadable(cls):
         return cls._downloadable
-
-
-class BaseModelUserTracked(BaseModel):
-    """
-    Abstract base for all models that need to track the user
-    who created and last updated the instance.
-    """
-
-    # fields
-    created_by = BaseField(
-        models.ForeignKey,
-        to=settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        editable=False,
-        related_name="%(app_label)s_%(class)s_created_set",
-    )
-    updated_by = BaseField(
-        models.ForeignKey,
-        to=settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        editable=False,
-        related_name="%(app_label)s_%(class)s_updated_set",
-    )
-
-    class Meta:
-        abstract = True
