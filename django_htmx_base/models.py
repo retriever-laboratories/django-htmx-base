@@ -3,9 +3,8 @@ import csv
 from enum import StrEnum
 from io import StringIO
 
-from django.conf import settings
-
 # django
+from django.conf import settings
 from django.db import models
 
 
