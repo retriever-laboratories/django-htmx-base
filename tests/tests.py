@@ -8,7 +8,6 @@ from django.urls import reverse
 
 # models
 from tests.models import TestBaseModel
-from tests.models import TestBaseModelUserTracked
 
 MODULES = ["admin", "models", "routers", "urls", "views", "viewsets"]
 
@@ -139,7 +138,7 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
         self.client.force_login(self.user)
 
     def test_user_tracked_formset_post(self):
-        url = reverse("testbasemodelusertracked-create")
+        url = reverse("testbasemodel-create")
         management_data = self.get_formset_management_data(url)
         post_payload = {
             **management_data,
@@ -148,14 +147,14 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
 
         response = self.client.post(url, data=post_payload)
 
-        new_instance = TestBaseModelUserTracked.objects.latest("created_at")
+        new_instance = TestBaseModel.objects.latest("created_at")
         self.assertEqual(response.status_code, 302)
         self.assertEqual(new_instance.created_by, self.user)
         self.assertEqual(new_instance.updated_by, self.user)
 
     def test_user_tracked_formset_post_ignores_anonymous_user(self):
         self.client.logout()
-        url = reverse("testbasemodelusertracked-create")
+        url = reverse("testbasemodel-create")
         management_data = self.get_formset_management_data(url)
         post_payload = {
             **management_data,
@@ -164,7 +163,7 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
 
         response = self.client.post(url, data=post_payload)
 
-        new_instance = TestBaseModelUserTracked.objects.latest("created_at")
+        new_instance = TestBaseModel.objects.latest("created_at")
         self.assertEqual(response.status_code, 302)
         self.assertIsNone(new_instance.created_by)
         self.assertIsNone(new_instance.updated_by)
@@ -174,12 +173,12 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
             username="original-user",
             password="test-password",
         )
-        instance = TestBaseModelUserTracked.objects.create(
+        instance = TestBaseModel.objects.create(
             test_charfield="Original string",
             created_by=original_user,
             updated_by=original_user,
         )
-        url = reverse("testbasemodelusertracked-edit", kwargs={"pk": instance.pk})
+        url = reverse("testbasemodel-edit", kwargs={"pk": instance.pk})
         management_data = self.get_formset_management_data(url)
         post_payload = {
             **management_data,
