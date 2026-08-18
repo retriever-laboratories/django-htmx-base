@@ -6,6 +6,7 @@ from tests.forms import TestForm
 
 # models
 from tests.models import TestBaseModel
+from tests.models import TestBaseModelUserTracked
 
 
 class TestBaseModelViewSet(HtmxViewSet):
@@ -15,3 +16,7 @@ class TestBaseModelViewSet(HtmxViewSet):
 class TestCustomFormViewSet(HtmxViewSet):
     model = TestBaseModel
     form_class = TestForm
+
+
+class TestBaseModelUserTrackedViewSet(HtmxViewSet):
+    model = TestBaseModelUserTracked
