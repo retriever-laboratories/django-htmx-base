@@ -96,8 +96,6 @@ class BaseModel(models.Model):
         self.is_active = False
         self.save(update_fields=["is_active"])
 
-        return 1, {self._meta.label: 1}
-
     def restore(self):
         self.is_active = True
         self.save(update_fields=["is_active"])
