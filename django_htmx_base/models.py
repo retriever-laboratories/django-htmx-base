@@ -86,6 +86,22 @@ class BaseModel(models.Model):
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(id={getattr(self, 'id', None)})"
 
+    def delete(self, *args, **kwargs):
+        if getattr(settings, "SOFT_DELETE", False):
+            return self.soft_delete()
+
+        return super().delete(*args, **kwargs)
+
+    def soft_delete(self):
+        self.is_active = False
+        self.save(update_fields=["is_active"])
+
+        return 1, {self._meta.label: 1}
+
+    def restore(self):
+        self.is_active = True
+        self.save(update_fields=["is_active"])
+
     @classmethod
     def get_filtrable_fields(cls):
         """

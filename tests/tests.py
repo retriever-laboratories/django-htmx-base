@@ -4,6 +4,7 @@ import importlib.util
 # django
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.test import override_settings
 from django.urls import reverse
 
 # models
@@ -193,3 +194,26 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
         self.assertEqual(instance.test_charfield, "Updated string")
         self.assertEqual(instance.created_by, original_user)
         self.assertEqual(instance.updated_by, self.user)
+class SoftDeleteTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.obj = TestBaseModel.objects.create(test_charfield="Hello")
+
+    @override_settings(SOFT_DELETE=True)
+    def test_delete_keeps_the_row(self):
+        self.obj.delete()
+
+        self.assertFalse(TestBaseModel.objects.get(pk=self.obj.pk).is_active)
+
+    @override_settings(SOFT_DELETE=False)
+    def test_delete_removes_the_row(self):
+        self.obj.delete()
+
+        self.assertFalse(TestBaseModel.objects.filter(pk=self.obj.pk).exists())
+
+    @override_settings(SOFT_DELETE=True)
+    def test_restore_reactivates_the_row(self):
+        self.obj.delete()
+        self.obj.restore()
+
+        self.assertTrue(TestBaseModel.objects.get(pk=self.obj.pk).is_active)
