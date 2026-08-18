@@ -194,6 +194,8 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
         self.assertEqual(instance.test_charfield, "Updated string")
         self.assertEqual(instance.created_by, original_user)
         self.assertEqual(instance.updated_by, self.user)
+
+
 class SoftDeleteTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
