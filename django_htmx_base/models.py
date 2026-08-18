@@ -3,6 +3,8 @@ import csv
 from enum import StrEnum
 from io import StringIO
 
+from django.conf import settings
+
 # django
 from django.conf import settings
 from django.db import models
@@ -241,3 +243,33 @@ class BaseModel(models.Model):
     @classmethod
     def is_downloadable(cls):
         return cls._downloadable
+
+
+class BaseModelUserTracked(BaseModel):
+    """
+    Abstract base for all models that need to track the user
+    who created and last updated the instance.
+    """
+
+    # fields
+    created_by = BaseField(
+        models.ForeignKey,
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="%(app_label)s_%(class)s_created_set",
+    )
+    updated_by = BaseField(
+        models.ForeignKey,
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="%(app_label)s_%(class)s_updated_set",
+    )
+
+    class Meta:
+        abstract = True
