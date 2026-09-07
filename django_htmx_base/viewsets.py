@@ -115,7 +115,10 @@ class GenericHtmxViewSet(
     template_engine = None
 
     # Templates configuration.
+    create_template_name = None
     detail_template_name = None
+    edit_template_name = None
+    form_template_name = None
     list_template_name = None
     suffix_join = "_"
     use_app_templates = False
@@ -137,7 +140,9 @@ class GenericHtmxViewSet(
     extra_forms_default = 0
     form_actions = object_actions | {HtmxAction.CREATE}
     form_class = BaseModelForm
-    form_template_name = None
+    edit_form_class = None
+    create_form_class = None
+    detail_form_class = None
     formset = None
     formset_can_delete = False
     formset_max_num = None
@@ -270,10 +275,8 @@ class GenericHtmxViewSet(
         if template_name is not None:
             return [template_name]
 
-        if self.is_htmx_partial():
-            template_name = self.htmx.trigger_name
-            if template_name:
-                return [template_name]
+        if self.is_htmx_partial() and self.htmx.trigger_name:
+            return [self.htmx.trigger_name]
 
         suffix = self.get_action_template_name(default=True)
         if self.use_model_templates or self.use_app_templates:
@@ -305,8 +308,11 @@ class GenericHtmxViewSet(
         if self.action in self.list_actions:
             return HtmxAction.LIST if default else self.list_template_name
 
-        if self.action in {HtmxAction.CREATE, HtmxAction.EDIT}:
-            return HtmxAction.FORM if default else self.form_template_name
+        if self.action == HtmxAction.CREATE:
+            return HtmxAction.FORM if default else self.create_template_name
+
+        if self.action == HtmxAction.EDIT:
+            return HtmxAction.FORM if default else self.edit_template_name
 
         if self.action == HtmxAction.DETAIL:
             return HtmxAction.DETAIL if default else self.detail_template_name
@@ -613,14 +619,25 @@ class HtmxViewSet(GenericHtmxViewSet):
         response["Content-Disposition"] = f"attachment; filename='{model.__name__}.csv'"
         return response
 
+    def get_action_form_class(self):
+        form_class_by_action = {
+            HtmxAction.CREATE: self.create_template_name,
+            HtmxAction.EDIT: self.edit_form_class,
+            HtmxAction.DETAIL: self.detail_form_class,
+        }
+
+        return form_class_by_action.get(self.action) or self.form_class
+
     def get_form_class(self):
         """
         Returns the form class to use. Falls back to a dynamically
         configured BaseModelForm if self.form_class is not set.
         """
 
-        if self.form_class is not None:
-            return self.form_class
+        form_class = self.get_action_form_class()
+
+        if form_class:
+            return form_class
 
         raise ImproperlyConfigured(
             f"Class {self.__class__.__name__} 'form_class' is required."
