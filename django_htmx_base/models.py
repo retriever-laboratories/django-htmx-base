@@ -47,7 +47,7 @@ class BaseModel(models.Model):
 
     # fields
     created_at = BaseField(models.DateTimeField, auto_now_add=True, sortable=True)
-    updated_at = BaseField(models.DateTimeField, auto_now=True)
+    updated_at = BaseField(models.DateTimeField, auto_now=True, sortable=True)
     created_by = BaseField(
         models.ForeignKey,
         to=settings.AUTH_USER_MODEL,
@@ -55,6 +55,7 @@ class BaseModel(models.Model):
         null=True,
         blank=True,
         related_name="%(app_label)s_%(class)s_created_set",
+        filtrable=True,
     )
     updated_by = BaseField(
         models.ForeignKey,
@@ -63,6 +64,7 @@ class BaseModel(models.Model):
         null=True,
         blank=True,
         related_name="%(app_label)s_%(class)s_updated_set",
+        filtrable=True,
     )
     is_active = BaseField(
         models.BooleanField,
