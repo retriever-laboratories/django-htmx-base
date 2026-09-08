@@ -612,7 +612,7 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
 
     def get_action_form_class(self):
         form_class_by_action = {
-            HtmxAction.CREATE: self.create_template_name,
+            HtmxAction.CREATE: self.create_form_class,
             HtmxAction.EDIT: self.edit_form_class,
             HtmxAction.DETAIL: self.detail_form_class,
         }
