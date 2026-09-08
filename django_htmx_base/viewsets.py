@@ -76,10 +76,12 @@ class HtmxAction(StrEnum):
     FORM = "form"
 
 
-class GenericHtmxViewSet(
-    TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, View
-):
+class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, View):
     """
+    A viewset in charge of implementing the standard CRUD actions
+    with HTMX support and flexible configuration for templates, forms, and context data.
+    The router maps HTTP methods to these action methods when building URL patterns.
+
     Viewset in charge of consolidating common logic
     for handling list and object retrieval, context data preparation,
     template name resolution, and form processing for HTMX-based CRUD views.
@@ -91,7 +93,7 @@ class GenericHtmxViewSet(
     - get_template_names
     """
 
-    action = None
+    view_action = None
     action_map = None
     route_detail = None
     basename = None
@@ -188,14 +190,14 @@ class GenericHtmxViewSet(
         """
         context: dict[str, Any] = {}
 
-        if self.action in self.list_actions:
+        if self.view_action in self.list_actions:
             object_list = (
                 object_list if object_list is not None else self.get_queryset()
             )
             if object_list is not None:
                 self.get_list_context_data(context, object_list)
 
-        if self.action in self.object_actions:
+        if self.view_action in self.object_actions:
             obj = self.object
             if not obj:
                 obj = self.get_object()
@@ -204,8 +206,8 @@ class GenericHtmxViewSet(
                 self.object = obj
                 self.get_object_context_data(context, obj)
 
-        if self.action in self.form_actions and "formset" not in kwargs:
-            context.update({"formset": self.formset})
+        if self.view_action in self.form_actions and "formset" not in kwargs:
+            context.update({"formset": self.get_formset()})
 
         context.update(kwargs)
 
@@ -305,16 +307,16 @@ class GenericHtmxViewSet(
         return [f"{suffix}.html"]
 
     def get_action_template_name(self, default=False):
-        if self.action in self.list_actions:
+        if self.view_action in self.list_actions:
             return HtmxAction.LIST if default else self.list_template_name
 
-        if self.action == HtmxAction.CREATE:
+        if self.view_action == HtmxAction.CREATE:
             return HtmxAction.FORM if default else self.create_template_name
 
-        if self.action == HtmxAction.EDIT:
+        if self.view_action == HtmxAction.EDIT:
             return HtmxAction.FORM if default else self.edit_template_name
 
-        if self.action == HtmxAction.DETAIL:
+        if self.view_action == HtmxAction.DETAIL:
             return HtmxAction.DETAIL if default else self.detail_template_name
 
         return self.template_name
@@ -324,7 +326,7 @@ class GenericHtmxViewSet(
             self.htmx
             and self.htmx.trigger_name
             and not self.htmx.boosted
-            and self.action == HtmxAction.LIST
+            and self.view_action == HtmxAction.LIST
         )
 
     def get_paginate_by(self, queryset):
@@ -380,20 +382,23 @@ class GenericHtmxViewSet(
             is_collection = isinstance(self.object, (list, tuple, set))
 
             if (
-                self.action in self.list_actions
-                or self.action == HtmxAction.DELETE
-                or (self.action == HtmxAction.CREATE and is_collection)
+                self.view_action in self.list_actions
+                or self.view_action == HtmxAction.DELETE
+                or (self.view_action == HtmxAction.CREATE and is_collection)
             ):
                 route_action = HtmxAction.LIST
                 kwargs = None
 
-            elif self.action in self.object_actions or self.action == HtmxAction.CREATE:
+            elif (
+                self.view_action in self.object_actions
+                or self.view_action == HtmxAction.CREATE
+            ):
                 route_action = HtmxAction.DETAIL
                 kwargs = {self.pk_url_kwarg: self.object.pk}
 
             else:
                 raise ImproperlyConfigured(
-                    f"No success URL is available for the {self.action!r} action."
+                    f"No success URL is available for the {self.view_action!r} action."
                 )
 
             route_name = f"{self.basename}-{route_action}"
@@ -460,14 +465,6 @@ class GenericHtmxViewSet(
     def htmx(self):
         return getattr(self.request, "htmx", cast(HtmxDetails, None))
 
-
-class HtmxViewSet(GenericHtmxViewSet):
-    """
-    A viewset in charge of implementing the standard CRUD actions
-    with HTMX support and flexible configuration for templates, forms, and context data.
-    The router maps HTTP methods to these action methods when building URL patterns.
-    """
-
     @classmethod
     def get_extra_actions(cls):
         return [
@@ -497,7 +494,7 @@ class HtmxViewSet(GenericHtmxViewSet):
 
         def view(request, *args, **kwargs):
             self = cls(**initkwargs)
-            self.action_map = actions
+            self.view_action_map = actions
 
             for method, action in actions.items():
                 handler = getattr(self, action)
@@ -523,20 +520,16 @@ class HtmxViewSet(GenericHtmxViewSet):
     def dispatch(self, request, *args, **kwargs):
         self.model = self.get_model()
         if hasattr(self, "action_map"):
-            handler_action = self.action_map.get(request.method.lower())
-            self.action = getattr(self, "route_action", handler_action)
+            handler_action = self.view_action_map.get(request.method.lower())
+            self.view_action = getattr(self, "route_action", handler_action)
 
         self.register_custom_action(handler_action)
 
-        if self.action in self.list_actions:
+        if self.view_action in self.list_actions:
             self.ordering = self.get_ordering_params(self.model)
 
-        if self.action in self.object_actions:
+        if self.view_action in self.object_actions:
             self.object = self.get_object()
-
-        if self.action in self.form_actions:
-            formset = self.get_formset()
-            self.formset = self.set_formset_action_owner(formset)
 
         self.context = self.get_context_data(**kwargs)
         return super().dispatch(request, *args, **kwargs)
@@ -550,16 +543,15 @@ class HtmxViewSet(GenericHtmxViewSet):
         self.list_actions = set(self.list_actions)
 
         if self.route_detail:
-            self.object_actions.add(self.action)
+            self.object_actions.add(self.view_action)
         else:
-            self.list_actions.add(self.action)
+            self.list_actions.add(self.view_action)
 
     def set_formset_action_owner(self, formset):
         user = getattr(self.request, "user", None)
         if not user or not getattr(user, "is_authenticated", False):
             return formset
 
-        user = self.request.user
         for form in formset:
             if hasattr(form.instance, "created_by") and not form.instance.pk:
                 form.instance.created_by = user
@@ -590,10 +582,10 @@ class HtmxViewSet(GenericHtmxViewSet):
 
     def process_formset(self):
         formset = self.get_formset()
-        self.formset = self.set_formset_action_owner(formset)
 
-        if self.formset.is_valid():
-            instances = self.formset.save()
+        if formset and formset.is_valid():
+            formset = self.set_formset_action_owner(formset)
+            instances = formset.save()
 
             if len(instances) == 1:
                 self.object = instances[0]
@@ -602,8 +594,7 @@ class HtmxViewSet(GenericHtmxViewSet):
 
             return HttpResponseRedirect(self.get_success_url())
 
-        context = self.get_context_data()
-        return self.render_to_response(context)
+        return self.render_to_response(self.get_context_data())
 
     @action(methods=["get"], detail=False)
     def download(self, request):  # noqa: ARG002
@@ -626,7 +617,7 @@ class HtmxViewSet(GenericHtmxViewSet):
             HtmxAction.DETAIL: self.detail_form_class,
         }
 
-        return form_class_by_action.get(self.action) or self.form_class
+        return form_class_by_action.get(self.view_action) or self.form_class
 
     def get_form_class(self):
         """
@@ -643,44 +634,20 @@ class HtmxViewSet(GenericHtmxViewSet):
             f"Class {self.__class__.__name__} 'form_class' is required."
         )
 
-    def get_formset_factory_kwargs(self):
-        """Constructs arguments dynamically for the factory function."""
-        return {
-            "can_delete": self.formset_can_delete,
-            "extra": self.extra_forms,
-            "form": self.get_form_class(),
-            "max_num": self.formset_max_num,
-            "min_num": self.formset_min_num,
-            "model": self.get_model(),
-            "validate_max": self.formset_validate_max,
-            "validate_min": self.formset_validate_min,
-        }
-
-    def get_formset_class(self):
-        """
-        Generates the FormSet class using modelformset_factory
-        dynamically with the Viewset's attributes.
-        """
-        kwargs: dict[str, Any] = self.get_formset_factory_kwargs()
-        return modelformset_factory(self.get_model(), **kwargs)
-
     def get_formset(self, **kwargs):
         """
         Dynamically constructs, configures, and instantiates the formset.
         Handles object editing context,
         full updates (PUT), and partial updates (PATCH).
         """
-        resolved_form_class = self.get_form_class()
-        model = self.get_model()
-
         if self.object:
             formset_queryset = self.get_queryset().filter(pk=self.object.pk)
-        elif self.action == HtmxAction.CREATE:
-            formset_queryset = model.objects.none()
+        elif self.view_action == HtmxAction.CREATE:
+            formset_queryset = self.get_model().objects.none()
         else:
             formset_queryset = self.get_queryset()
 
-        if self.action == HtmxAction.EDIT:
+        if self.view_action == HtmxAction.EDIT:
             self.formset_can_delete = True
 
         default_kwargs: dict[str, Any] = {
@@ -704,7 +671,13 @@ class HtmxViewSet(GenericHtmxViewSet):
         default_kwargs["form_kwargs"].update(**form_kwargs)
 
         formset_class = modelformset_factory(
-            model=model, form=resolved_form_class, extra=self.extra_forms
+            model=self.get_model(),
+            form=self.get_form_class(),
+            extra=self.extra_forms,
+            max_num=self.formset_max_num,
+            min_num=self.formset_min_num,
+            validate_max=self.formset_validate_max,
+            validate_min=self.formset_validate_min,
         )
 
         return formset_class(**default_kwargs)
@@ -739,7 +712,7 @@ class HtmxViewSet(GenericHtmxViewSet):
         elif (
             self.request
             and self.request.method == "GET"
-            and self.action == HtmxAction.CREATE
+            and self.view_action == HtmxAction.CREATE
         ):
             return self.extra_forms_default + 1
 
