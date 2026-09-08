@@ -21,10 +21,13 @@ class FormsetTestHelper(TestCase):
         """
         formset = self.get_formset(url)
         initial_management_data = formset.management_form.initial
+        prefix = formset.management_form.prefix
         prefixed_management_data = {
-            f"form-{key}": value for key, value in initial_management_data.items()
+            f"{prefix}-{key}": value for key, value in initial_management_data.items()
         }
-        prefixed_management_data["form-TOTAL_FORMS"] = str(total_forms)
+
+        if total_forms is not None:
+            prefixed_management_data[f"{prefix}-TOTAL_FORMS"] = str(total_forms)
 
         return prefixed_management_data
 
@@ -35,6 +38,25 @@ class FormsetTestHelper(TestCase):
     def get_formset(self, url):
         view_instance = self.get_view_instance(url)
         return view_instance.get_formset()
+
+    def get_initial_payload(self, url, total_forms=1):
+        formset = self.get_formset(url)
+        payload = self.get_formset_management_data(url, total_forms)
+
+        for i, form in enumerate(formset.forms):
+            for field_name in form.fields:
+                field_value = form.get_initial_for_field(
+                    form.fields[field_name], field_name
+                )
+
+                if hasattr(field_value, "pk"):
+                    field_value = field_value.pk
+                elif field_value is None:
+                    field_value = ""
+
+                payload[f"{formset.prefix}-{i}-{field_name}"] = field_value
+
+        return payload
 
 
 class AppTestCase(FormsetTestHelper, TestCase):
@@ -65,16 +87,13 @@ class AppTestCase(FormsetTestHelper, TestCase):
         self.assertContains(response, "Hello")
 
     def test_empty_formsets_post(self):
+        initial_obj_count = TestBaseModel.objects.count()
         url = reverse("testbasemodel-create")
-        management_data = self.get_formset_management_data(url)
-        post_payload = {
-            **management_data,
-        }
+        payload = self.get_initial_payload(url)
 
-        response = self.client.post(url, data=post_payload)
-        formset = response.context["view"].formset
+        response = self.client.post(url, data=payload)
 
-        self.assertFalse(formset.is_valid())
+        self.assertEqual(TestBaseModel.objects.count(), initial_obj_count)
         self.assertEqual(response.status_code, 200)
 
     def test_single_formsets_post(self):
@@ -140,11 +159,12 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
 
     def test_user_tracked_formset_post(self):
         url = reverse("testbasemodel-create")
-        management_data = self.get_formset_management_data(url)
-        post_payload = {
-            **management_data,
-            "form-0-test_charfield": "User tracked string",
-        }
+        post_payload = self.get_initial_payload(url)
+        post_payload.update(
+            {
+                "form-0-test_charfield": "User tracked string",
+            }
+        )
 
         response = self.client.post(url, data=post_payload)
 
@@ -170,7 +190,7 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
         self.assertIsNone(new_instance.updated_by)
 
     def test_user_tracked_formset_edit_only_updates_updated_by(self):
-        original_user = get_user_model().objects.create_user(
+        original_user = get_user_model().objects.create(
             username="original-user",
             password="test-password",
         )
@@ -180,12 +200,12 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
             updated_by=original_user,
         )
         url = reverse("testbasemodel-edit", kwargs={"pk": instance.pk})
-        management_data = self.get_formset_management_data(url)
-        post_payload = {
-            **management_data,
-            "form-0-id": instance.pk,
-            "form-0-test_charfield": "Updated string",
-        }
+        post_payload = self.get_initial_payload(url)
+        post_payload.update(
+            {
+                "form-0-test_charfield": "Updated string",
+            }
+        )
 
         response = self.client.post(url, data=post_payload)
 
