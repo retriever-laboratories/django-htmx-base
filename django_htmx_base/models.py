@@ -158,11 +158,7 @@ class BaseModel(models.Model):
 
     @classmethod
     def get_display_fields(cls):
-        return [
-            field
-            for field in cls._meta.get_fields()
-            if field.name in cls._display_fields
-        ]
+        return [cls._meta.get_field(x) for x in cls._display_fields]
 
     @property
     def display_fields(self):
