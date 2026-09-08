@@ -46,17 +46,14 @@ class BaseModel(models.Model):
     """
 
     # fields
-    created_at = BaseField(
-        models.DateTimeField, auto_now_add=True, editable=False, sortable=True
-    )
-    updated_at = BaseField(models.DateTimeField, auto_now=True, editable=False)
+    created_at = BaseField(models.DateTimeField, auto_now_add=True, sortable=True)
+    updated_at = BaseField(models.DateTimeField, auto_now=True)
     created_by = BaseField(
         models.ForeignKey,
         to=settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        editable=False,
         related_name="%(app_label)s_%(class)s_created_set",
     )
     updated_by = BaseField(
@@ -65,7 +62,6 @@ class BaseModel(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        editable=False,
         related_name="%(app_label)s_%(class)s_updated_set",
     )
     is_active = BaseField(
