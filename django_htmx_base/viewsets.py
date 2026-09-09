@@ -709,11 +709,5 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
 
             except (ValueError, TypeError):
                 pass
-        elif (
-            self.request
-            and self.request.method == "GET"
-            and self.view_action == HtmxAction.CREATE
-        ):
-            return self.extra_forms_default + 1
 
         return self.extra_forms_default
