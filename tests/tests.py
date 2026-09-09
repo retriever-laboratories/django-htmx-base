@@ -60,9 +60,13 @@ class FormsetTestHelper(TestCase):
 
 
 class AppTestCase(FormsetTestHelper, TestCase):
+    instance = None
+
     @classmethod
     def setUpTestData(cls):
-        cls.instance = TestBaseModel.objects.create(test_charfield="Hello")
+        cls.instance = TestBaseModel.objects.create(
+            test_charfield="Hello", test_display_field="This is not editable"
+        )
 
     def test_modules_exists(self):
         for name in MODULES:
@@ -148,10 +152,27 @@ class AppTestCase(FormsetTestHelper, TestCase):
         form_class = view_instance.form_class
         self.assertNotIn("is_active", form_class._meta.fields)
 
+    def test_form_display_only_fields(self):
+        url = reverse("testform-edit", kwargs={"pk": self.instance.pk})
+        response = self.client.get(url)
+
+        self.assertIn(
+            '<span class="plain-text-value">This is not editable</span>',
+            response.text,
+        )
+        self.assertIn(
+            (
+                '<input type="hidden" '
+                'name="form-0-test_display_field" '
+                'value="This is not editable"'
+            ),
+            response.text,
+        )
+
 
 class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(
+        self.user = get_user_model().objects.create(
             username="test-user",
             password="test-password",
         )
@@ -217,6 +238,8 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
 
 
 class SoftDeleteTestCase(TestCase):
+    obj = None
+
     @classmethod
     def setUpTestData(cls):
         cls.obj = TestBaseModel.objects.create(test_charfield="Hello")

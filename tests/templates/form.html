@@ -24,7 +24,24 @@
       class="flex flex-col gap-4">
       {% csrf_token %}
 
-      {{ formset }}
+      {{ formset.management_form }}
+
+      <div class="my-custom-formset-wrapper">
+        {% for form in formset %}
+            {% for field in form %}
+              <div class="form-group">
+                <label><strong>{{ field.label }}:</strong></label>
+                
+                {% if field.is_hidden %}
+                  <span class="plain-text-value">{{ field.value }}</span>
+                  {{ field }} 
+                {% else %}
+                  <div>{{ field }}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+        {% endfor %}
+      </div>
 
       <div class="flex gap-2">
         <button type="submit" class="btn btn-primary">Save</button>

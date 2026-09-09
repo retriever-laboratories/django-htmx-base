@@ -1,17 +1,19 @@
 # django
 from django import forms
 
-# widgets
-from django_htmx_base.widgets import WidgetStylerMixin
+from django_htmx_base.mixins import DisplayOnlyMixin
+
+# mixins
+from django_htmx_base.mixins import WidgetStylerMixin
 
 
-class BaseForm(WidgetStylerMixin, forms.Form):
+class BaseForm(WidgetStylerMixin, DisplayOnlyMixin, forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.apply_widget_styles()
 
 
-class BaseModelForm(WidgetStylerMixin, forms.ModelForm):
+class BaseModelForm(WidgetStylerMixin, DisplayOnlyMixin, forms.ModelForm):
     class Meta:
         fields = "__all__"
 

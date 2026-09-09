@@ -40,3 +40,24 @@ class WidgetStylerMixin:
                 if default_attrs:
                     updated_attrs = {**default_attrs, **field.widget.attrs}
                     field.widget.attrs.update(updated_attrs)
+
+
+class DisplayOnlyMixin:
+    fields: dict[str, forms.Field]
+
+    class Meta:
+        fields: list[str] | str
+        display_only_fields: list[str]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        instance = getattr(self, "instance", None)
+        is_editing = instance is not None and getattr(instance, "pk", None) is not None
+
+        if is_editing:
+            display_only_fields = getattr(self.Meta, "display_only_fields", [])
+
+            for field_name in display_only_fields:
+                if field_name in self.fields:
+                    self.fields[field_name].widget = forms.HiddenInput()
