@@ -169,6 +169,17 @@ class AppTestCase(FormsetTestHelper, TestCase):
             response.text,
         )
 
+    def test_custom_formset(self):
+        url = reverse("testformset-edit", kwargs={"pk": self.instance.pk})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+
+        payload = self.get_initial_payload(url)
+        response = self.client.post(url, payload)
+
+        self.assertEqual(response.status_code, 302)
+
 
 class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
     def setUp(self):

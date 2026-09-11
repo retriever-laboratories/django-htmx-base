@@ -1,3 +1,6 @@
+# django
+from django.forms import BaseModelFormSet
+
 # viewsets
 from django_htmx_base.viewsets import HtmxViewSet
 
@@ -15,3 +18,8 @@ class TestBaseModelViewSet(HtmxViewSet):
 class TestCustomFormViewSet(HtmxViewSet):
     model = TestBaseModel
     form_class = TestForm
+
+
+class TestCustomFormSetViewSet(HtmxViewSet):
+    model = TestBaseModel
+    formset = BaseModelFormSet

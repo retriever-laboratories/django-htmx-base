@@ -1,6 +1,7 @@
-# models
 # forms
 from django_htmx_base.forms import BaseModelForm
+
+# models
 from tests.models import TestBaseModel
 
 

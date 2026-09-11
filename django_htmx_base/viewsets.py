@@ -94,7 +94,7 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
     """
 
     view_action = None
-    action_map = None
+    view_action_map = None
     route_detail = None
     basename = None
     allow_empty = True
@@ -146,7 +146,6 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
     create_form_class = None
     detail_form_class = None
     formset = None
-    formset_can_delete = False
     formset_max_num = None
     formset_min_num = 1
     formset_validate_max = False
@@ -198,12 +197,9 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
                 self.get_list_context_data(context, object_list)
 
         if self.view_action in self.object_actions:
-            obj = self.object
-            if not obj:
-                obj = self.get_object()
+            obj = self.get_object()
 
             if obj and obj is not None:
-                self.object = obj
                 self.get_object_context_data(context, obj)
 
         if self.view_action in self.form_actions and "formset" not in kwargs:
@@ -389,7 +385,7 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
                 route_action = HtmxAction.LIST
                 kwargs = None
 
-            elif (
+            elif not is_collection and (
                 self.view_action in self.object_actions
                 or self.view_action == HtmxAction.CREATE
             ):
@@ -519,7 +515,7 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
 
     def dispatch(self, request, *args, **kwargs):
         self.model = self.get_model()
-        if hasattr(self, "action_map"):
+        if hasattr(self, "view_action_map"):
             handler_action = self.view_action_map.get(request.method.lower())
             self.view_action = getattr(self, "route_action", handler_action)
 
@@ -532,6 +528,7 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
             self.object = self.get_object()
 
         self.context = self.get_context_data(**kwargs)
+
         return super().dispatch(request, *args, **kwargs)
 
     def register_custom_action(self, handler_action):
@@ -567,10 +564,7 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
         return self.render_to_response(self.context)
 
     def create(self, request, *args, **kwargs):  # noqa: ARG002
-        if request.method == "GET":
-            return self.render_to_response(self.context)
-        elif request.method == "POST":
-            return self.process_formset()
+        return self.process_formset()
 
     def edit(self, request, *args, **kwargs):  # noqa: ARG002
         return self.process_formset()
@@ -581,15 +575,20 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
         return HttpResponseRedirect(success_url)
 
     def process_formset(self):
+        if self.request.method == "GET":
+            return self.render_to_response(self.get_context_data())
+
         formset = self.get_formset()
 
         if formset and formset.is_valid():
-            formset = self.set_formset_action_owner(formset)
+            if formset.has_changed():
+                formset = self.set_formset_action_owner(formset)
+
             instances = formset.save()
 
             if len(instances) == 1:
                 self.object = instances[0]
-            else:
+            elif instances:
                 self.object = instances
 
             return HttpResponseRedirect(self.get_success_url())
@@ -634,21 +633,29 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
             f"Class {self.__class__.__name__} 'form_class' is required."
         )
 
-    def get_formset(self, **kwargs):
-        """
-        Dynamically constructs, configures, and instantiates the formset.
-        Handles object editing context,
-        full updates (PUT), and partial updates (PATCH).
-        """
+    def get_formset_factory_kwargs(self):
+        kwargs = {
+            "model": self.get_model(),
+            "form": self.get_form_class(),
+            "extra": self.extra_forms,
+            "max_num": self.formset_max_num,
+            "min_num": self.formset_min_num,
+            "validate_max": self.formset_validate_max,
+            "validate_min": self.formset_validate_min,
+        }
+
+        if self.formset is not None:
+            kwargs["formset"] = self.formset
+
+        return kwargs
+
+    def get_formset_kwargs(self, **kwargs):
         if self.object:
             formset_queryset = self.get_queryset().filter(pk=self.object.pk)
         elif self.view_action == HtmxAction.CREATE:
             formset_queryset = self.get_model().objects.none()
         else:
             formset_queryset = self.get_queryset()
-
-        if self.view_action == HtmxAction.EDIT:
-            self.formset_can_delete = True
 
         default_kwargs: dict[str, Any] = {
             "queryset": formset_queryset,
@@ -670,17 +677,21 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
         default_kwargs.setdefault("form_kwargs", {})
         default_kwargs["form_kwargs"].update(**form_kwargs)
 
-        formset_class = modelformset_factory(
-            model=self.get_model(),
-            form=self.get_form_class(),
-            extra=self.extra_forms,
-            max_num=self.formset_max_num,
-            min_num=self.formset_min_num,
-            validate_max=self.formset_validate_max,
-            validate_min=self.formset_validate_min,
-        )
+        return default_kwargs
 
-        return formset_class(**default_kwargs)
+    def get_formset(self, **kwargs):
+        """
+        Dynamically constructs, configures, and instantiates the formset.
+        Handles object editing context,
+        full updates (PUT), and partial updates (PATCH).
+        """
+        factory_kwargs: dict[str, Any] = self.get_formset_factory_kwargs()
+
+        formset_class = modelformset_factory(**factory_kwargs)
+
+        formset_kwargs: dict[str, Any] = self.get_formset_kwargs(**kwargs)
+
+        return formset_class(**formset_kwargs)
 
     @property
     def url_names(self):
