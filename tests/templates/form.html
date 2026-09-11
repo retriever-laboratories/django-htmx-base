@@ -29,17 +29,15 @@
       <div class="my-custom-formset-wrapper">
         {% for form in formset %}
             {% for field in form %}
-              <div class="form-group">
-                <label><strong>{{ field.label }}:</strong></label>
-                
-                {% if field.is_hidden %}
+                {% if field.is_display_only %}
+                  <span class="font-bold">{{ field.label }}</span>
                   <span class="plain-text-value">{{ field.value }}</span>
-                  {{ field }} 
-                {% else %}
-                  <div>{{ field }}</div>
                 {% endif %}
-              </div>
             {% endfor %}
+
+            <hr>
+
+            {{ form }}
         {% endfor %}
       </div>
 

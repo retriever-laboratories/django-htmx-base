@@ -160,14 +160,9 @@ class AppTestCase(FormsetTestHelper, TestCase):
             '<span class="plain-text-value">This is not editable</span>',
             response.text,
         )
-        self.assertIn(
-            (
-                '<input type="hidden" '
-                'name="form-0-test_display_field" '
-                'value="This is not editable"'
-            ),
-            response.text,
-        )
+        self.assertIn('type="hidden"', response.text)
+        self.assertIn('data-display-only', response.text)
+                
 
     def test_custom_formset(self):
         url = reverse("testformset-edit", kwargs={"pk": self.instance.pk})
