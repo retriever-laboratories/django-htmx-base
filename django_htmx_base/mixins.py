@@ -1,6 +1,9 @@
 # django
 from django import forms
 
+# widgets
+from django_htmx_base.widgets import DisplayOnlyWidget
+
 
 class WidgetStylerMixin:
     fields: dict[str, forms.Field]
@@ -60,4 +63,4 @@ class DisplayOnlyMixin:
 
             for field_name in display_only_fields:
                 if field_name in self.fields:
-                    self.fields[field_name].widget = forms.HiddenInput()
+                    self.fields[field_name].widget = DisplayOnlyWidget()
