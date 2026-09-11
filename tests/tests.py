@@ -161,8 +161,7 @@ class AppTestCase(FormsetTestHelper, TestCase):
             response.text,
         )
         self.assertIn('type="hidden"', response.text)
-        self.assertIn('data-display-only', response.text)
-                
+        self.assertIn("data-display-only", response.text)
 
     def test_custom_formset(self):
         url = reverse("testformset-edit", kwargs={"pk": self.instance.pk})
