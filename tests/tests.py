@@ -3,12 +3,15 @@ import importlib.util
 
 # django
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.test import override_settings
 from django.urls import reverse
 
 # models
 from tests.models import TestBaseModel
+from tests.models import TestBaseOrderIndexModel
+from tests.models import TestBaseOrderIndexModelUniqueAttr
 
 MODULES = ["admin", "models", "routers", "urls", "views", "viewsets"]
 
@@ -267,3 +270,69 @@ class SoftDeleteTestCase(TestCase):
         self.obj.restore()
 
         self.assertTrue(TestBaseModel.objects.get(pk=self.obj.pk).is_active)
+
+
+class BaseOrderIndexModelTestCase(TestCase):
+    model_object = None
+    model_object_2 = None
+    order_obj = None
+    unique_order_obj = None
+    unique_order_obj_2 = None
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.model_object = TestBaseModel.objects.create(test_charfield="Hello")
+        cls.model_object_2 = TestBaseModel.objects.create(test_charfield="Hello again")
+        cls.order_obj = TestBaseOrderIndexModel.objects.create(
+            test_charfield="I am the first",
+            test_fk=cls.model_object,
+        )
+        cls.unique_order_obj = TestBaseOrderIndexModelUniqueAttr.objects.create(
+            test_charfield="I am the first but unique",
+            test_fk=cls.model_object,
+        )
+        cls.unique_order_obj_2 = TestBaseOrderIndexModelUniqueAttr.objects.create(
+            test_charfield="I am the first but unique and different",
+            test_fk=cls.model_object_2,
+        )
+
+    def test_add_ordering_object(self):
+        prev_index = self.order_obj.order_index
+        new_obj = TestBaseOrderIndexModel.objects.create(
+            test_charfield="I am the second",
+            test_fk=self.model_object,
+        )
+
+        self.assertEqual(prev_index + 1, new_obj.order_index)
+
+        prev_unique_index = self.unique_order_obj.order_index
+        new_unique_obj = TestBaseOrderIndexModelUniqueAttr.objects.create(
+            test_charfield="I am the second but unique",
+            test_fk=self.model_object,
+        )
+
+        self.assertEqual(prev_unique_index + 1, new_unique_obj.order_index)
+
+    def test_unique_order_attribute_filtering(self):
+        obj_index = self.unique_order_obj.order_index
+        obj_2_index = self.unique_order_obj_2.order_index
+        self.assertEqual(obj_index, obj_2_index)
+
+        new_obj_1 = TestBaseOrderIndexModelUniqueAttr.objects.create(
+            test_charfield="I am the second but unique",
+            test_fk=self.model_object,
+        )
+        self.assertEqual(obj_index + 1, new_obj_1.order_index)
+        self.assertEqual(
+            self.unique_order_obj_2.next_index() + 1, new_obj_1.next_index()
+        )
+
+    def test_order_uniqueness(self):
+        new_unique_obj = self.unique_order_obj
+        prev_obj_count = new_unique_obj.__class__.objects.count()
+        new_unique_obj.pk = None
+        with self.assertRaises(ValidationError):
+            new_unique_obj.save()
+
+        new_obj_count = new_unique_obj.__class__.objects.count()
+        self.assertEqual(prev_obj_count, new_obj_count)
