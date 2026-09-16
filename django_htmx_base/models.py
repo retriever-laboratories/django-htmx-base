@@ -294,6 +294,19 @@ class BaseOrderIndexModel(BaseModel):
     def get_query_kwargs(self):
         return {k: getattr(self, k, None) for k in self.get_unique_order_attributes()}
 
+    def update_order_index(self, order_index):
+        elements = list(
+            self.__class__.objects.filter(**self.get_query_kwargs()).exclude(pk=self.pk)
+        )
+        elements.insert(order_index, self)
+
+        for index, element in enumerate(elements):
+            element.order_index = index
+
+        self.__class__.objects.bulk_update(elements, ["order_index"])
+
+        return self
+
     def save(self, *args, **kwargs):
         query_kwargs = kwargs.get("query_kwargs") or {}
         if self.order_index is None:
