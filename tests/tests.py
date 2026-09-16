@@ -336,3 +336,42 @@ class BaseOrderIndexModelTestCase(TestCase):
 
         new_obj_count = new_unique_obj.__class__.objects.count()
         self.assertEqual(prev_obj_count, new_obj_count)
+
+    def test_update_order_index_forward(self):
+        second_obj = TestBaseOrderIndexModel.objects.create(
+            test_charfield="I am the second",
+            test_fk=self.model_object,
+        )
+        third_obj = TestBaseOrderIndexModel.objects.create(
+            test_charfield="I am the third",
+            test_fk=self.model_object,
+        )
+
+        self.order_obj.update_order_index(1)
+
+        second_obj.refresh_from_db()
+        third_obj.refresh_from_db()
+
+        self.assertEqual(0, second_obj.order_index)
+        self.assertEqual(1, self.order_obj.order_index)
+        self.assertEqual(2, third_obj.order_index)
+
+    def test_update_order_index_backward(self):
+        second_obj = TestBaseOrderIndexModel.objects.create(
+            test_charfield="I am the second",
+            test_fk=self.model_object,
+        )
+        third_obj = TestBaseOrderIndexModel.objects.create(
+            test_charfield="I am the third",
+            test_fk=self.model_object,
+        )
+
+        third_obj.update_order_index(0)
+
+        self.order_obj.refresh_from_db()
+        second_obj.refresh_from_db()
+
+        self.assertEqual(0, third_obj.order_index)
+        self.assertEqual(1, self.order_obj.order_index)
+        self.assertEqual(2, second_obj.order_index)
+        
