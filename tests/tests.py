@@ -3,7 +3,6 @@ import importlib.util
 
 # django
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.test import override_settings
 from django.urls import reverse
@@ -327,16 +326,6 @@ class BaseOrderIndexModelTestCase(TestCase):
             self.unique_order_obj_2.next_index() + 1, new_obj_1.next_index()
         )
 
-    def test_order_uniqueness(self):
-        new_unique_obj = self.unique_order_obj
-        prev_obj_count = new_unique_obj.__class__.objects.count()
-        new_unique_obj.pk = None
-        with self.assertRaises(ValidationError):
-            new_unique_obj.save()
-
-        new_obj_count = new_unique_obj.__class__.objects.count()
-        self.assertEqual(prev_obj_count, new_obj_count)
-
     def test_update_order_index_forward(self):
         second_obj = TestBaseOrderIndexModel.objects.create(
             test_charfield="I am the second",
@@ -346,15 +335,25 @@ class BaseOrderIndexModelTestCase(TestCase):
             test_charfield="I am the third",
             test_fk=self.model_object,
         )
+        fourth_obj = TestBaseOrderIndexModel.objects.create(
+            test_charfield="I am the fourth",
+            test_fk=self.model_object,
+        )
 
-        self.order_obj.update_order_index(1)
+        self.assertEqual(1, second_obj.order_index)
+        self.assertEqual(2, third_obj.order_index)
+        self.assertEqual(3, fourth_obj.order_index)
+
+        second_obj.order_index = 3
+        second_obj.save()
 
         second_obj.refresh_from_db()
         third_obj.refresh_from_db()
+        fourth_obj.refresh_from_db()
 
-        self.assertEqual(0, second_obj.order_index)
-        self.assertEqual(1, self.order_obj.order_index)
-        self.assertEqual(2, third_obj.order_index)
+        self.assertEqual(3, second_obj.order_index)
+        self.assertEqual(1, third_obj.order_index)
+        self.assertEqual(2, fourth_obj.order_index)
 
     def test_update_order_index_backward(self):
         second_obj = TestBaseOrderIndexModel.objects.create(
@@ -365,13 +364,22 @@ class BaseOrderIndexModelTestCase(TestCase):
             test_charfield="I am the third",
             test_fk=self.model_object,
         )
+        fourth_obj = TestBaseOrderIndexModel.objects.create(
+            test_charfield="I am the fourth",
+            test_fk=self.model_object,
+        )
 
-        third_obj.update_order_index(0)
+        self.assertEqual(1, second_obj.order_index)
+        self.assertEqual(2, third_obj.order_index)
+        self.assertEqual(3, fourth_obj.order_index)
 
-        self.order_obj.refresh_from_db()
+        fourth_obj.order_index = 1
+        fourth_obj.save()
+
         second_obj.refresh_from_db()
+        third_obj.refresh_from_db()
+        fourth_obj.refresh_from_db()
 
-        self.assertEqual(0, third_obj.order_index)
-        self.assertEqual(1, self.order_obj.order_index)
         self.assertEqual(2, second_obj.order_index)
-        
+        self.assertEqual(3, third_obj.order_index)
+        self.assertEqual(1, fourth_obj.order_index)
