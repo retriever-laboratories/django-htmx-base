@@ -7,6 +7,7 @@ from io import StringIO
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import F
 
 
 class FilterInputType(StrEnum):
@@ -294,31 +295,52 @@ class BaseOrderIndexModel(BaseModel):
     def get_query_kwargs(self):
         return {k: getattr(self, k, None) for k in self.get_unique_order_attributes()}
 
-    def update_order_index(self, order_index):
-        elements = list(
-            self.__class__.objects.filter(**self.get_query_kwargs()).exclude(pk=self.pk)
-        )
-        elements.insert(order_index, self)
+    def shift_order_indexes(self, old_index=None, **query_kwargs):
+        objs = self.__class__.objects.filter(**query_kwargs)
+        if self.pk is None or old_index is None:
+            objs.filter(order_index__gte=self.order_index).update(
+                order_index=F("order_index") + 1
+            )
+        elif self.order_index != old_index:
+            if self.order_index < old_index:
+                objs.filter(
+                    order_index__gte=self.order_index,
+                    order_index__lt=old_index,
+                ).exclude(pk=self.pk).update(order_index=F("order_index") + 1)
+            else:
+                objs.filter(
+                    order_index__gt=old_index,
+                    order_index__lte=self.order_index,
+                ).exclude(pk=self.pk).update(order_index=F("order_index") - 1)
 
-        for index, element in enumerate(elements):
-            element.order_index = index
+    def clean_order_index(self, query_kwargs):
+        next_index = self.next_index(**query_kwargs)
 
-        self.__class__.objects.bulk_update(elements, ["order_index"])
+        old_index = None
 
-        return self
+        if self.pk:
+            old_index = (
+                self.__class__.objects.filter(pk=self.pk)
+                .values_list("order_index", flat=True)
+                .first()
+            )
+
+        if self.order_index is None:
+            self.order_index = next_index
+
+        if self.order_index > next_index:
+            self.order_index = next_index
+        elif self.order_index < next_index:
+            self.shift_order_indexes(old_index, **query_kwargs)
 
     def save(self, *args, **kwargs):
-        query_kwargs = kwargs.get("query_kwargs") or {}
-        if self.order_index is None:
-            self.order_index = self.next_index(**query_kwargs)
-
+        query_kwargs = kwargs.get("query_kwargs") or self.get_query_kwargs()
+        self.clean_order_index(query_kwargs)
         self.clean_order_uniqueness(**query_kwargs)
 
         super().save(*args, **kwargs)
 
     def clean_order_uniqueness(self, **query_kwargs):
-        query_kwargs = query_kwargs or self.get_query_kwargs()
-
         if not query_kwargs:
             return
 
