@@ -2,12 +2,15 @@
 import csv
 from enum import StrEnum
 from io import StringIO
+from typing import cast
 
 # django
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.db import models
+from django.db import transaction
 from django.db.models import F
+from django.db.models import Max
+from django.db.models.base import ModelBase
 
 
 class FilterInputType(StrEnum):
@@ -241,7 +244,49 @@ class BaseModel(models.Model):
         return cls._downloadable
 
 
-class BaseOrderIndexModel(BaseModel):
+class OrderIndexModelBase(ModelBase):
+    def __new__(mcls, name, bases, attrs, **kwargs):
+        cls = cast(type[BaseModel], super().__new__(mcls, name, bases, attrs, **kwargs))
+
+        if cls._meta.abstract:
+            return cls
+
+        constraint = cls.get_order_index_constraint()  # type: ignore[attr-defined]
+
+        if constraint is None:
+            return cls
+
+        cls._meta.constraints = (
+            *cls._meta.constraints,
+            constraint,
+        )
+
+        cls._meta.original_attrs["constraints"] = list(cls._meta.constraints)
+
+        return cls
+
+
+class BaseOrderIndexModel(BaseModel, metaclass=OrderIndexModelBase):
+    """
+    Provides contiguous, zero-based ordering within each ordering group
+    when instances are saved.
+
+    The ordering group is determined by all fields marked with
+    ``unique_order_attribute=True``. Objects are ordered by ``order_index``.
+
+    When saving:
+
+    - ``None`` → append at the end.
+    - Explicit index on a new object → insert at that position.
+    - Existing object moved down → shift intervening items up.
+    - Existing object moved up → shift intervening items down.
+    - Index beyond the end → clamp to the end.
+    - Moving to the same index → do nothing.
+
+    The ordering is maintained atomically during save, so a reorder and the
+    object save are committed or rolled back together.
+    """
+
     order_index = BaseField(
         models.PositiveIntegerField,
         null=True,
@@ -250,36 +295,32 @@ class BaseOrderIndexModel(BaseModel):
     class Meta:
         abstract = True
         ordering = ("order_index",)
-        constraints = []
-
-        def __init__(self, *args, **kwargs):
-            for unique_attr in BaseOrderIndexModel.get_unique_order_attributes():
-                self.constraints.append(
-                    models.UniqueConstraint(
-                        fields=[unique_attr, "order_index"],
-                        name=f"{unique_attr}_order_index_constraint",
-                    ),
-                )
-
-            return super().__init__(*args, **kwargs)
 
     @classmethod
-    def last_index(cls, **query_kwargs):
-        last_obj = cls.objects.filter(**query_kwargs).last()
+    def get_order_index_constraint(cls):
+        attributes = cls.get_unique_order_attributes()
 
-        return last_obj.order_index if last_obj else None
+        if not attributes:
+            return None
 
-    def next_index(self, **query_kwargs):
-        if not query_kwargs:
-            query_kwargs = self.get_query_kwargs()
+        constraint_name = f"{cls._meta.app_label}_{cls._meta.model_name}_order_index"
 
-        last_index = self.last_index(**query_kwargs)
+        return models.UniqueConstraint(
+            fields=[*attributes, "order_index"],
+            name=constraint_name,
+        )
+
+    def last_index(self):
+        filter_kwargs = self.get_filter_kwargs()
+
+        return self.__class__.objects.filter(**filter_kwargs).aggregate(
+            max_index=Max("order_index")
+        )["max_index"]
+
+    def next_index(self):
+        last_index = self.last_index()
 
         return last_index + 1 if last_index is not None else 0
-
-    @property
-    def unique_order_attributes(self):
-        return self.get_unique_order_attributes()
 
     @classmethod
     def get_unique_order_attributes(cls):
@@ -292,30 +333,35 @@ class BaseOrderIndexModel(BaseModel):
             if getattr(field, "unique_order_attribute", False)
         ]
 
-    def get_query_kwargs(self):
-        return {k: getattr(self, k, None) for k in self.get_unique_order_attributes()}
+    def get_filter_kwargs(self):
+        return {
+            field: getattr(self, field) for field in self.get_unique_order_attributes()
+        }
 
-    def shift_order_indexes(self, old_index=None, **query_kwargs):
-        objs = self.__class__.objects.filter(**query_kwargs)
-        if self.pk is None or old_index is None:
-            objs.filter(order_index__gte=self.order_index).update(
-                order_index=F("order_index") + 1
-            )
-        elif self.order_index != old_index:
-            if self.order_index < old_index:
-                objs.filter(
-                    order_index__gte=self.order_index,
-                    order_index__lt=old_index,
-                ).exclude(pk=self.pk).update(order_index=F("order_index") + 1)
-            else:
-                objs.filter(
-                    order_index__gt=old_index,
-                    order_index__lte=self.order_index,
-                ).exclude(pk=self.pk).update(order_index=F("order_index") - 1)
+    def shift_order_indexes(self, old_index):
+        if self.order_index == old_index:
+            return
 
-    def clean_order_index(self, query_kwargs):
-        next_index = self.next_index(**query_kwargs)
+        filter_kwargs = self.get_filter_kwargs()
+        objs = self.__class__.objects.filter(**filter_kwargs)
 
+        if old_index is None:
+            objs.filter(
+                order_index__gte=self.order_index,
+            ).update(order_index=F("order_index") + 1)
+        elif self.order_index < old_index:
+            objs.filter(
+                order_index__gte=self.order_index,
+                order_index__lt=old_index,
+            ).exclude(pk=self.pk).update(order_index=F("order_index") + 1)
+        else:
+            objs.filter(
+                order_index__gt=old_index,
+                order_index__lte=self.order_index,
+            ).exclude(pk=self.pk).update(order_index=F("order_index") - 1)
+
+    def clean_order_index(self):
+        next_index = self.next_index()
         old_index = None
 
         if self.pk:
@@ -327,27 +373,15 @@ class BaseOrderIndexModel(BaseModel):
 
         if self.order_index is None:
             self.order_index = next_index
-
-        if self.order_index > next_index:
-            self.order_index = next_index
-        elif self.order_index < next_index:
-            self.shift_order_indexes(old_index, **query_kwargs)
-
-    def save(self, *args, **kwargs):
-        query_kwargs = kwargs.get("query_kwargs") or self.get_query_kwargs()
-        self.clean_order_index(query_kwargs)
-        self.clean_order_uniqueness(**query_kwargs)
-
-        super().save(*args, **kwargs)
-
-    def clean_order_uniqueness(self, **query_kwargs):
-        if not query_kwargs:
             return
 
-        query_kwargs.update({"order_index": self.order_index})
+        max_index = next_index - 1 if old_index is not None else next_index
+        self.order_index = min(self.order_index, max_index)
 
-        for unique_attr in self.__class__.get_unique_order_attributes():
-            if self.__class__.objects.filter(**query_kwargs).exists():
-                raise ValidationError(
-                    f"Order index {self.order_index} already exists for {unique_attr}"
-                )
+        if old_index != self.order_index:
+            self.shift_order_indexes(old_index)
+
+    def save(self, *args, **kwargs):
+        with transaction.atomic():
+            self.clean_order_index()
+            super().save(*args, **kwargs)

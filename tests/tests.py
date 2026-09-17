@@ -1,8 +1,10 @@
 # standard
 import importlib.util
+from io import StringIO
 
 # django
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.test import TestCase
 from django.test import override_settings
 from django.urls import reverse
@@ -293,6 +295,43 @@ class BaseOrderIndexModelTestCase(TestCase):
         cls.unique_order_obj_2 = TestBaseOrderIndexModelUniqueAttr.objects.create(
             test_charfield="I am the first but unique and different",
             test_fk=cls.model_object_2,
+        )
+
+    def test_no_missing_migrations(self):
+        output = StringIO()
+
+        call_command(
+            "makemigrations",
+            "tests",
+            "--dry-run",
+            "--verbosity",
+            3,
+            stdout=output,
+        )
+
+        self.assertIn(
+            "order_index",
+            output.getvalue(),
+        )
+
+        self.assertIn(
+            (
+                """options={
+                'ordering': ('order_index',),
+                'abstract': False,
+            },"""
+            ),
+            output.getvalue(),
+        )
+
+    def test_meta_unique_constraints(self):
+        self.assertEqual(
+            self.unique_order_obj._meta.constraints[0],
+            self.unique_order_obj.get_order_index_constraint(),
+        )
+        self.assertEqual(
+            self.order_obj._meta.constraints,
+            self.order_obj.get_order_index_constraint() or [],
         )
 
     def test_add_ordering_object(self):
