@@ -45,9 +45,10 @@ class FormsetTestHelper(TestCase):
 
     def get_initial_payload(self, url, total_forms=1):
         formset = self.get_formset(url)
+        form = formset.forms[0]
         payload = self.get_formset_management_data(url, total_forms)
 
-        for i, form in enumerate(formset.forms):
+        for i in range(total_forms):
             for field_name in form.fields:
                 field_value = form.get_initial_for_field(
                     form.fields[field_name], field_name
@@ -106,15 +107,16 @@ class AppTestCase(FormsetTestHelper, TestCase):
 
     def test_single_formsets_post(self):
         url = reverse("testbasemodel-create")
-        management_data = self.get_formset_management_data(url)
+        payload = self.get_initial_payload(url)
         initial_obj_count = TestBaseModel.objects.count()
         test_string = "I am testing using this string"
-        post_payload = {
-            **management_data,
-            "form-0-test_charfield": test_string,
-        }
+        payload.update(
+            {
+                "form-0-test_charfield": test_string,
+            }
+        )
 
-        response = self.client.post(url, data=post_payload)
+        response = self.client.post(url, data=payload)
 
         new_instance = TestBaseModel.objects.latest("created_at")
         self.assertEqual(response.status_code, 302)
@@ -124,14 +126,15 @@ class AppTestCase(FormsetTestHelper, TestCase):
     def test_multiple_formset_posts(self):
         url = reverse("testbasemodel-create")
         initial_obj_count = TestBaseModel.objects.count()
-        management_data = self.get_formset_management_data(url, 2)
-        post_payload = {
-            **management_data,
-            "form-0-test_charfield": "First String",
-            "form-1-test_charfield": "Second String",
-        }
+        payload = self.get_initial_payload(url, 2)
+        payload.update(
+            {
+                "form-0-test_charfield": "First String",
+                "form-1-test_charfield": "Second String",
+            }
+        )
 
-        response = self.client.post(url, data=post_payload)
+        response = self.client.post(url, data=payload)
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(TestBaseModel.objects.count(), initial_obj_count + 2)
@@ -206,11 +209,12 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
     def test_user_tracked_formset_post_ignores_anonymous_user(self):
         self.client.logout()
         url = reverse("testbasemodel-create")
-        management_data = self.get_formset_management_data(url)
-        post_payload = {
-            **management_data,
-            "form-0-test_charfield": "Anonymous user string",
-        }
+        post_payload = self.get_initial_payload(url)
+        post_payload.update(
+            {
+                "form-0-test_charfield": "Anonymous user string",
+            }
+        )
 
         response = self.client.post(url, data=post_payload)
 
@@ -257,7 +261,13 @@ class SoftDeleteTestCase(TestCase):
     def test_delete_keeps_the_row(self):
         self.obj.delete()
 
-        self.assertFalse(TestBaseModel.objects.get(pk=self.obj.pk).is_active)
+        self.assertFalse(
+            TestBaseModel.objects.all_objects().get(pk=self.obj.pk).is_active
+        )
+        self.assertFalse(TestBaseModel.objects.filter(pk=self.obj.pk).exists())
+
+        self.assertFalse(TestBaseModel.all_objects.get(pk=self.obj.pk).is_active)
+        self.assertTrue(TestBaseModel.all_objects.filter(pk=self.obj.pk).exists())
 
     @override_settings(SOFT_DELETE=False)
     def test_delete_removes_the_row(self):

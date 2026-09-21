@@ -12,6 +12,10 @@ from django.db.models import F
 from django.db.models import Max
 from django.db.models.base import ModelBase
 
+# managers
+from django_htmx_base.managers import ActiveManager
+from django_htmx_base.managers import DefaultManager
+
 
 class FilterInputType(StrEnum):
     CHECKBOX = "checkbox"
@@ -83,6 +87,10 @@ class BaseModel(models.Model):
     # view attributes
     _display_fields = ["id", "created_at", "is_active"]
     _downloadable = True
+
+    # managers
+    objects = ActiveManager()
+    all_objects = DefaultManager()
 
     class Meta:
         abstract = True
