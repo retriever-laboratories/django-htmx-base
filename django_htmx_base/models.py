@@ -308,6 +308,7 @@ class BaseOrderIndexModel(BaseModel, metaclass=OrderIndexModelBase):
         return models.UniqueConstraint(
             fields=[*attributes, "order_index"],
             name=constraint_name,
+            deferrable=models.Deferrable.DEFERRED,
         )
 
     def last_index(self):
