@@ -75,6 +75,7 @@ class HtmxAction(StrEnum):
     DESTROY = "destroy"
     FORM = "form"
 
+
 class SubmitAction(StrEnum):
     SAVE = "save"
     SAVE_AND_CONTINUE = "continue"
