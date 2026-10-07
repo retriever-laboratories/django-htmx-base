@@ -189,6 +189,8 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
         """
         context: dict[str, Any] = {}
 
+        print(f"DEBUG: view_action={self.view_action}, object_list={object_list}, kwargs={kwargs}, context={context}")
+
         if self.view_action in self.list_actions:
             object_list = (
                 object_list if object_list is not None else self.get_queryset()
@@ -373,8 +375,11 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
 
     def get_success_url(self):
         try:
+            print("DEBUG: Trying super().get_success_url()")
             return super().get_success_url()
         except ImproperlyConfigured:
+            print("DEBUG: super().get_success_url() raised ImproperlyConfigured, computing success URL based on view_action and object.")
+            print(f"DEBUG: view_action={self.view_action}, object={self.object}, basename={self.basename}, submit_action={self.request.POST.get('submit_action') if self.request else "None"}")
             is_collection = isinstance(self.object, (list, tuple, set))
 
             if (
@@ -389,7 +394,14 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
                 self.view_action in self.object_actions
                 or self.view_action == HtmxAction.CREATE
             ):
-                route_action = HtmxAction.DETAIL
+                if (
+                    self.view_action == HtmxAction.EDIT
+                    and self.request.POST.get("submit_action") == "continue"
+                ):
+                    route_action = HtmxAction.EDIT
+                else:
+                    route_action = HtmxAction.DETAIL
+
                 kwargs = {self.pk_url_kwarg: self.object.pk}
 
             else:
