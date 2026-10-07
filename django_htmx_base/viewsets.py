@@ -74,6 +74,7 @@ class HtmxAction(StrEnum):
     DELETE = "delete"
     DESTROY = "destroy"
     FORM = "form"
+    CONTINUE = "continue"
 
 
 class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, View):
@@ -385,6 +386,10 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
                 route_action = HtmxAction.LIST
                 kwargs = None
 
+            elif getattr(self, "route_action", None) == HtmxAction.CONTINUE:
+                route_action = HtmxAction.EDIT
+                kwargs = {self.pk_url_kwarg: self.object.pk}
+
             elif not is_collection and (
                 self.view_action in self.object_actions
                 or self.view_action == HtmxAction.CREATE
@@ -518,6 +523,9 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
         if hasattr(self, "view_action_map"):
             handler_action = self.view_action_map.get(request.method.lower())
             self.view_action = getattr(self, "route_action", handler_action)
+
+        if self.view_action == HtmxAction.CONTINUE:
+            self.view_action = handler_action
 
         self.register_custom_action(handler_action)
 

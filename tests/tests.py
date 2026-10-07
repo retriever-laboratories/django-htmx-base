@@ -179,6 +179,70 @@ class AppTestCase(FormsetTestHelper, TestCase):
         self.assertEqual(response.status_code, 302)
 
 
+class ContinueActionTestCase(FormsetTestHelper):
+    @classmethod
+    def setUpTestData(cls):
+        cls.instance = TestBaseModel.objects.create(test_charfield="Hello")
+
+    def test_successful_create(self):
+        url = reverse("testbasemodel-continue")
+        view = self.get_view_instance(url)
+        self.assertEqual(view.view_action, "create")
+        self.assertFalse(view.get_formset().queryset.exists())
+        initial_count = TestBaseModel.objects.count()
+        payload = self.get_formset_management_data(url)
+        payload["form-0-test_charfield"] = "Created with continue"
+
+        response = self.client.post(url, payload)
+
+        instance = TestBaseModel.objects.get(test_charfield="Created with continue")
+        self.assertEqual(TestBaseModel.objects.count(), initial_count + 1)
+        self.assertRedirects(
+            response, reverse("testbasemodel-edit", kwargs={"pk": instance.pk})
+        )
+
+    def test_successful_edit(self):
+        url = reverse("testbasemodel-continue", kwargs={"pk": self.instance.pk})
+        self.assertEqual(self.get_view_instance(url).view_action, "edit")
+        initial_count = TestBaseModel.objects.count()
+        payload = self.get_initial_payload(url)
+        payload["form-0-test_charfield"] = "Edited with continue"
+
+        response = self.client.post(url, payload)
+
+        self.instance.refresh_from_db()
+        self.assertEqual(self.instance.test_charfield, "Edited with continue")
+        self.assertEqual(TestBaseModel.objects.count(), initial_count)
+        self.assertRedirects(
+            response,
+            reverse("testbasemodel-edit", kwargs={"pk": self.instance.pk}),
+        )
+
+    def test_unchanged_edit(self):
+        url = reverse("testbasemodel-continue", kwargs={"pk": self.instance.pk})
+        response = self.client.post(url, self.get_initial_payload(url))
+        self.assertRedirects(
+            response,
+            reverse("testbasemodel-edit", kwargs={"pk": self.instance.pk}),
+        )
+
+    def test_invalid_create(self):
+        url = reverse("testbasemodel-continue")
+        initial_count = TestBaseModel.objects.count()
+        payload = self.get_formset_management_data(url)
+        payload["form-0-test_charfield"] = "x" * 101
+
+        response = self.client.post(url, payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["formset"].errors)
+        self.assertEqual(TestBaseModel.objects.count(), initial_count)
+
+    def test_missing_object(self):
+        url = reverse("testbasemodel-continue", kwargs={"pk": self.instance.pk + 1})
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+
 class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create(
