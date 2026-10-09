@@ -193,24 +193,26 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
         """
         Consolidated page title retrieval for list and object actions.
         """
+        model_name = self.get_model_name().capitalize()
+
         if self.view_action in self.list_actions:
             context["page_title"] = (
-                self.list_page_title or f"{self.get_model_name()} Management"
+                self.list_page_title or f"{model_name} Management"
             )
 
         elif self.view_action == HtmxAction.CREATE:
             context["page_title"] = (
-                self.create_page_title or f"Add {self.get_model_name()}"
+                self.create_page_title or f"Add {model_name}"
             )
 
         elif self.view_action == HtmxAction.EDIT:
             context["page_title"] = (
-                self.edit_page_title or f"Edit {self.get_model_name()}"
+                self.edit_page_title or f"Edit {model_name}"
             )
 
         elif self.view_action == HtmxAction.DETAIL:
             context["page_title"] = (
-                self.detail_page_title or f"{self.get_model_name()} Details"
+                self.detail_page_title or f"{model_name} Details"
             )
 
     def get_context_data(self, *, object_list=None, **kwargs):
