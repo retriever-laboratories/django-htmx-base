@@ -57,6 +57,22 @@ class HtmxRouter:
             name=HtmxAction.DELETE,
             detail=True,
         ),
+        Route(
+            url=HtmxAction.CONTINUE,
+            mapping={"post": HtmxAction.CREATE},
+            name=HtmxAction.CONTINUE,
+            detail=False,
+        ),
+        Route(
+            url=f"{{pk}}/{HtmxAction.CONTINUE}",
+            mapping={
+                "post": HtmxAction.EDIT,
+                "put": HtmxAction.EDIT,
+                "patch": HtmxAction.EDIT,
+            },
+            name=HtmxAction.CONTINUE,
+            detail=True,
+        ),
     ]
 
     def __init__(self):
