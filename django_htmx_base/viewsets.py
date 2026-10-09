@@ -126,6 +126,12 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
     use_app_templates = False
     use_model_templates = False
 
+    # Title configuration for list and object actions
+    create_page_title = None
+    list_page_title = None
+    detail_page_title = None
+    edit_page_title = None
+
     # Context names configuration for list and object
     model_name = None
     context_object_list_name = None
@@ -183,6 +189,30 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
         if model is not None:
             return "%s_list" % model._meta.model_name
 
+    def get_context_page_title(self, context):
+        """
+        Consolidated page title retrieval for list and object actions.
+        """
+        if self.view_action in self.list_actions:
+            context["page_title"] = (
+                self.list_page_title or f"{self.get_model_name()} Management"
+            )
+
+        elif self.view_action == HtmxAction.CREATE:
+            context["page_title"] = (
+                self.create_page_title or f"Add {self.get_model_name()}"
+            )
+
+        elif self.view_action == HtmxAction.EDIT:
+            context["page_title"] = (
+                self.edit_page_title or f"Edit {self.get_model_name()}"
+            )
+
+        elif self.view_action == HtmxAction.DETAIL:
+            context["page_title"] = (
+                self.detail_page_title or f"{self.get_model_name()} Details"
+            )
+
     def get_context_data(self, *, object_list=None, **kwargs):
         """
         Consolidated context data preparation for the different action types
@@ -209,6 +239,8 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
 
         if "model_name" not in context.keys():
             context["model_name"] = self.get_model_name()
+
+        self.get_context_page_title(context)
 
         return ContextMixin.get_context_data(self, **context)
 
