@@ -386,7 +386,7 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
                 route_action = HtmxAction.LIST
                 kwargs = None
 
-            elif getattr(self, "route_action", None) == HtmxAction.CONTINUE:
+            elif self.view_action == HtmxAction.CONTINUE:
                 route_action = HtmxAction.EDIT
                 kwargs = {self.pk_url_kwarg: self.object.pk}
 
