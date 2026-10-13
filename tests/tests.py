@@ -186,11 +186,12 @@ class ContinueActionTestCase(FormsetTestHelper):
 
     def test_successful_create(self):
         url = reverse("testbasemodel-continue")
-        view = self.get_view_instance(url)
+        form_url = reverse("testbasemodel-create")
+        view = self.get_view_instance(form_url)
         self.assertEqual(view.view_action, "create")
         self.assertFalse(view.get_formset().queryset.exists())
         initial_count = TestBaseModel.objects.count()
-        payload = self.get_formset_management_data(url)
+        payload = self.get_formset_management_data(form_url)
         payload["form-0-test_charfield"] = "Created with continue"
 
         response = self.client.post(url, payload)
@@ -203,9 +204,10 @@ class ContinueActionTestCase(FormsetTestHelper):
 
     def test_successful_edit(self):
         url = reverse("testbasemodel-continue", kwargs={"pk": self.instance.pk})
-        self.assertEqual(self.get_view_instance(url).view_action, "edit")
+        form_url = reverse("testbasemodel-edit", kwargs={"pk": self.instance.pk})
+        self.assertEqual(self.get_view_instance(form_url).view_action, "edit")
         initial_count = TestBaseModel.objects.count()
-        payload = self.get_initial_payload(url)
+        payload = self.get_initial_payload(form_url)
         payload["form-0-test_charfield"] = "Edited with continue"
 
         response = self.client.post(url, payload)
@@ -220,7 +222,8 @@ class ContinueActionTestCase(FormsetTestHelper):
 
     def test_unchanged_edit(self):
         url = reverse("testbasemodel-continue", kwargs={"pk": self.instance.pk})
-        response = self.client.post(url, self.get_initial_payload(url))
+        form_url = reverse("testbasemodel-edit", kwargs={"pk": self.instance.pk})
+        response = self.client.post(url, self.get_initial_payload(form_url))
         self.assertRedirects(
             response,
             reverse("testbasemodel-edit", kwargs={"pk": self.instance.pk}),
@@ -229,7 +232,7 @@ class ContinueActionTestCase(FormsetTestHelper):
     def test_invalid_create(self):
         url = reverse("testbasemodel-continue")
         initial_count = TestBaseModel.objects.count()
-        payload = self.get_formset_management_data(url)
+        payload = self.get_formset_management_data(reverse("testbasemodel-create"))
         payload["form-0-test_charfield"] = "x" * 101
 
         response = self.client.post(url, payload)
@@ -240,7 +243,7 @@ class ContinueActionTestCase(FormsetTestHelper):
 
     def test_missing_object(self):
         url = reverse("testbasemodel-continue", kwargs={"pk": self.instance.pk + 1})
-        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.post(url).status_code, 404)
 
 
 class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
