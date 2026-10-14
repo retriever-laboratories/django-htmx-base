@@ -279,11 +279,21 @@ class BaseOrderIndexModelTestCase(TestCase):
     order_obj = None
     unique_order_obj = None
     unique_order_obj_2 = None
+    model_object_3 = None
+    group_objs = None
 
     @classmethod
     def setUpTestData(cls):
         cls.model_object = TestBaseModel.objects.create(test_charfield="Hello")
         cls.model_object_2 = TestBaseModel.objects.create(test_charfield="Hello again")
+        cls.model_object_3 = TestBaseModel.objects.create(test_charfield="Group")
+        cls.group_objs = [
+            TestBaseOrderIndexModelUniqueAttr.objects.create(
+                test_charfield=f"obj_{i}",
+                test_fk=cls.model_object_3,
+            )
+            for i in range(7)
+        ]
         cls.order_obj = TestBaseOrderIndexModel.objects.create(
             test_charfield="I am the first",
             test_fk=cls.model_object,
@@ -422,3 +432,89 @@ class BaseOrderIndexModelTestCase(TestCase):
         self.assertEqual(2, second_obj.order_index)
         self.assertEqual(3, third_obj.order_index)
         self.assertEqual(1, fourth_obj.order_index)
+
+    def test_delete_keeps_order_indexes_contiguous(self):
+        self.group_objs[3].delete()
+
+        self.assertEqual(
+            [0, 1, 2, 3, 4, 5],
+            list(
+                TestBaseOrderIndexModelUniqueAttr.objects.filter(
+                    test_fk=self.model_object_3
+                ).values_list("order_index", flat=True)
+            ),
+        )
+
+    def test_move_to_last_after_delete(self):
+        self.group_objs[1].delete()
+        self.group_objs[3].delete()
+
+        obj = self.group_objs[0]
+        obj.order_index = 4
+        obj.save()
+
+        self.assertEqual(
+            ["obj_2", "obj_4", "obj_5", "obj_6", "obj_0"],
+            list(
+                TestBaseOrderIndexModelUniqueAttr.objects.filter(
+                    test_fk=self.model_object_3
+                ).values_list("test_charfield", flat=True)
+            ),
+        )
+
+    def test_move_forward_after_delete(self):
+        self.group_objs[1].delete()
+        self.group_objs[2].delete()
+        self.group_objs[3].delete()
+
+        obj = self.group_objs[0]
+        obj.order_index = 2
+        obj.save()
+
+        self.assertEqual(
+            ["obj_4", "obj_5", "obj_0", "obj_6"],
+            list(
+                TestBaseOrderIndexModelUniqueAttr.objects.filter(
+                    test_fk=self.model_object_3
+                ).values_list("test_charfield", flat=True)
+            ),
+        )
+
+    @override_settings(SOFT_DELETE=True)
+    def test_soft_delete_keeps_order_indexes_contiguous(self):
+        obj = self.group_objs[3]
+        obj.delete()
+
+        obj.refresh_from_db()
+        self.assertIsNone(obj.order_index)
+        self.assertEqual(
+            [0, 1, 2, 3, 4, 5],
+            list(
+                TestBaseOrderIndexModelUniqueAttr.objects.filter(
+                    test_fk=self.model_object_3, is_active=True
+                ).values_list("order_index", flat=True)
+            ),
+        )
+
+    @override_settings(SOFT_DELETE=True)
+    def test_restore_appends_to_end(self):
+        obj = self.group_objs[1]
+        obj.delete()
+        obj.restore()
+
+        self.assertEqual(
+            [
+                ("obj_0", 0),
+                ("obj_2", 1),
+                ("obj_3", 2),
+                ("obj_4", 3),
+                ("obj_5", 4),
+                ("obj_6", 5),
+                ("obj_1", 6),
+            ],
+            list(
+                TestBaseOrderIndexModelUniqueAttr.objects.filter(
+                    test_fk=self.model_object_3, is_active=True
+                ).values_list("test_charfield", "order_index")
+            ),
+        )
