@@ -361,16 +361,22 @@ class BaseOrderIndexModel(BaseModel, metaclass=OrderIndexModelBase):
                 order_index__lte=self.order_index,
             ).exclude(pk=self.pk).update(order_index=F("order_index") - 1)
 
+    def get_stored_order_index(self):
+        return (
+            self.__class__.objects.filter(pk=self.pk)
+            .values_list("order_index", flat=True)
+            .first()
+        )
+
+    def compact_order_indexes(self, removed_index):
+        self.__class__.objects.filter(
+            **self.get_filter_kwargs(),
+            order_index__gt=removed_index,
+        ).update(order_index=F("order_index") - 1)
+
     def clean_order_index(self):
         next_index = self.next_index()
-        old_index = None
-
-        if self.pk:
-            old_index = (
-                self.__class__.objects.filter(pk=self.pk)
-                .values_list("order_index", flat=True)
-                .first()
-            )
+        old_index = self.get_stored_order_index() if self.pk else None
 
         if self.order_index is None:
             self.order_index = next_index
@@ -386,3 +392,28 @@ class BaseOrderIndexModel(BaseModel, metaclass=OrderIndexModelBase):
         with transaction.atomic():
             self.clean_order_index()
             super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if getattr(settings, "SOFT_DELETE", False):
+            return self.soft_delete()
+
+        with transaction.atomic():
+            order_index = self.get_stored_order_index()
+            result = super().delete(*args, **kwargs)
+            self.compact_order_indexes(order_index)
+
+        return result
+
+    def soft_delete(self):
+        with transaction.atomic():
+            order_index = self.get_stored_order_index()
+            self.is_active = False
+            self.order_index = None
+        
+            super().save(update_fields=["is_active", "order_index"])
+            self.compact_order_indexes(order_index)
+
+    def restore(self):
+        self.is_active = True
+        self.order_index = None
+        self.save(update_fields=["is_active", "order_index"])
