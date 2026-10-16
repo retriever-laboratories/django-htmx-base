@@ -409,7 +409,7 @@ class BaseOrderIndexModel(BaseModel, metaclass=OrderIndexModelBase):
             order_index = self.get_stored_order_index()
             self.is_active = False
             self.order_index = None
-        
+
             super().save(update_fields=["is_active", "order_index"])
             self.compact_order_indexes(order_index)
 
