@@ -257,11 +257,9 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
     def test_user_tracked_formset_post(self):
         url = reverse("testbasemodel-create")
         post_payload = self.get_initial_payload(url)
-        post_payload.update(
-            {
-                "form-0-test_charfield": "User tracked string",
-            }
-        )
+        post_payload.update({
+            "form-0-test_charfield": "User tracked string",
+        })
 
         response = self.client.post(url, data=post_payload)
 
@@ -298,11 +296,9 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
         )
         url = reverse("testbasemodel-edit", kwargs={"pk": instance.pk})
         post_payload = self.get_initial_payload(url)
-        post_payload.update(
-            {
-                "form-0-test_charfield": "Updated string",
-            }
-        )
+        post_payload.update({
+            "form-0-test_charfield": "Updated string",
+        })
 
         response = self.client.post(url, data=post_payload)
 
@@ -584,4 +580,23 @@ class BaseOrderIndexModelTestCase(TestCase):
                     test_fk=self.model_object_3, is_active=True
                 ).values_list("test_charfield", "order_index")
             ),
+        )
+
+
+class ToastViewSetTestCase(TestCase):
+    def test_htmx_request_appends_toast(self):
+        response = self.client.post(
+            reverse("testtoast-lets_make_a_toast"),
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Cheers!")
+        self.assertContains(
+            response,
+            'hx-swap-oob="beforeend:#toasts"',
+        )
+        self.assertContains(
+            response,
+            "Toast is actually a bread reference",
         )

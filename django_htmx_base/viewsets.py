@@ -12,8 +12,11 @@ from django.core.paginator import Paginator
 from django.db import models
 from django.forms import modelformset_factory
 from django.http import HttpResponse
+from django.http import HttpResponseBase
 from django.http import HttpResponseRedirect
 from django.http import QueryDict
+from django.template.loader import render_to_string
+from django.template.response import SimpleTemplateResponse
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.views.generic import View
@@ -126,6 +129,7 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
     suffix_join = "_"
     use_app_templates = False
     use_model_templates = False
+    toast_template = "django_htmx_base/toast.html"
 
     # Context names configuration for list and object
     model_name = None
@@ -151,6 +155,9 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
     formset_min_num = 1
     formset_validate_max = False
     formset_validate_min = True
+
+    # Private attributes
+    _toasts = []
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -229,23 +236,19 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
                 queryset,
                 page_size,
             )
-            context.update(
-                {
-                    "paginator": paginator,
-                    "page_obj": page,
-                    "is_paginated": is_paginated,
-                    "object_list": queryset,
-                }
-            )
+            context.update({
+                "paginator": paginator,
+                "page_obj": page,
+                "is_paginated": is_paginated,
+                "object_list": queryset,
+            })
         else:
-            context.update(
-                {
-                    "paginator": None,
-                    "page_obj": None,
-                    "is_paginated": False,
-                    "object_list": queryset,
-                }
-            )
+            context.update({
+                "paginator": None,
+                "page_obj": None,
+                "is_paginated": False,
+                "object_list": queryset,
+            })
 
         context["model"] = self.get_model()
         context["model_name"] = model_name
@@ -537,7 +540,68 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
 
         self.context = self.get_context_data(**kwargs)
 
-        return super().dispatch(request, *args, **kwargs)
+        response = super().dispatch(request, *args, **kwargs)
+
+        return self.process_response(response)
+
+    def process_response(self, response):
+        if self._toasts:
+            return self.process_toast_response(response)
+
+        return response
+
+    def process_toast_response(self, response):
+        if not self._toasts or not self.toast_template:
+            return response
+
+        if not self.htmx:
+            return response
+
+        if not isinstance(response, HttpResponseBase):
+            return response
+
+        if response.status_code in (204, 304):
+            return response
+
+        if 300 <= response.status_code < 400:
+            return response
+
+        if response.streaming:
+            return response
+
+        content_type = response.get("Content-Type", "")
+        if content_type.split(";", 1)[0] != "text/html":
+            return response
+
+        if isinstance(response, SimpleTemplateResponse):
+            response.add_post_render_callback(self.append_toast_html)
+            return response
+
+        return self.append_toast_html(response)
+
+    def add_toast(self, message, variant="info", ttl=3000):
+        if not self.htmx:
+            raise RuntimeError("Toasts can only be added to HTMX requests.")
+
+        self._toasts.append({
+            "message": message,
+            "variant": variant,
+            "ttl": ttl,
+        })
+
+    def append_toast_html(self, response):
+        toast_html = "".join(
+            render_to_string(
+                self.toast_template,
+                toast,
+                request=self.request,
+            )
+            for toast in self._toasts
+        )
+
+        response.content += toast_html.encode(response.charset)
+
+        return response
 
     def register_custom_action(self, handler_action):
         handler = getattr(self, handler_action, None)
@@ -670,12 +734,10 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
         }
 
         if self.request.method in ("POST", "PUT", "PATCH"):
-            default_kwargs.update(
-                {
-                    "data": self.request.POST,
-                    "files": self.request.FILES,
-                }
-            )
+            default_kwargs.update({
+                "data": self.request.POST,
+                "files": self.request.FILES,
+            })
 
         form_kwargs = {}
         if self.request.method == "PATCH":
