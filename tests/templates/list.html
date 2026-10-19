@@ -1,1 +1,12 @@
+<div id="result">
+    <form
+        hx-post="{% url 'testtoast-lets_make_a_toast' %}"
+        hx-target="#result"
+        hx-swap="innerHTML"
+    >
+        {% csrf_token %}
+        <button type="submit">Make a toast</button>
+    </form>
+</div>
+
 {% for obj in object_list %}{{ obj.test_charfield }}{% endfor %}
