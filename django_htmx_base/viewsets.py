@@ -236,19 +236,23 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
                 queryset,
                 page_size,
             )
-            context.update({
-                "paginator": paginator,
-                "page_obj": page,
-                "is_paginated": is_paginated,
-                "object_list": queryset,
-            })
+            context.update(
+                {
+                    "paginator": paginator,
+                    "page_obj": page,
+                    "is_paginated": is_paginated,
+                    "object_list": queryset,
+                }
+            )
         else:
-            context.update({
-                "paginator": None,
-                "page_obj": None,
-                "is_paginated": False,
-                "object_list": queryset,
-            })
+            context.update(
+                {
+                    "paginator": None,
+                    "page_obj": None,
+                    "is_paginated": False,
+                    "object_list": queryset,
+                }
+            )
 
         context["model"] = self.get_model()
         context["model_name"] = model_name
@@ -583,11 +587,13 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
         if not self.htmx:
             raise RuntimeError("Toasts can only be added to HTMX requests.")
 
-        self._toasts.append({
-            "message": message,
-            "variant": variant,
-            "ttl": ttl,
-        })
+        self._toasts.append(
+            {
+                "message": message,
+                "variant": variant,
+                "ttl": ttl,
+            }
+        )
 
     def append_toast_html(self, response):
         toast_html = "".join(
@@ -734,10 +740,12 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
         }
 
         if self.request.method in ("POST", "PUT", "PATCH"):
-            default_kwargs.update({
-                "data": self.request.POST,
-                "files": self.request.FILES,
-            })
+            default_kwargs.update(
+                {
+                    "data": self.request.POST,
+                    "files": self.request.FILES,
+                }
+            )
 
         form_kwargs = {}
         if self.request.method == "PATCH":

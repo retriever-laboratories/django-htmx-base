@@ -194,12 +194,14 @@ class BaseModel(models.Model):
             else:
                 value = getattr(self, field.name)
 
-            field_objects.append({
-                "field": field.name,
-                "value": value,
-                "partial": getattr(field, "partial", None),
-                "class": getattr(field, "css_class", ""),
-            })
+            field_objects.append(
+                {
+                    "field": field.name,
+                    "value": value,
+                    "partial": getattr(field, "partial", None),
+                    "class": getattr(field, "css_class", ""),
+                }
+            )
 
         return field_objects
 
@@ -361,8 +363,7 @@ class BaseOrderIndexModel(BaseModel, metaclass=OrderIndexModelBase):
 
     def get_stored_order_index(self):
         return (
-            self.__class__.objects
-            .filter(pk=self.pk)
+            self.__class__.objects.filter(pk=self.pk)
             .values_list("order_index", flat=True)
             .first()
         )
