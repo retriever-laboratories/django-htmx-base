@@ -257,9 +257,11 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
     def test_user_tracked_formset_post(self):
         url = reverse("testbasemodel-create")
         post_payload = self.get_initial_payload(url)
-        post_payload.update({
-            "form-0-test_charfield": "User tracked string",
-        })
+        post_payload.update(
+            {
+                "form-0-test_charfield": "User tracked string",
+            }
+        )
 
         response = self.client.post(url, data=post_payload)
 
@@ -296,9 +298,11 @@ class UserTrackedModelTestCase(FormsetTestHelper, TestCase):
         )
         url = reverse("testbasemodel-edit", kwargs={"pk": instance.pk})
         post_payload = self.get_initial_payload(url)
-        post_payload.update({
-            "form-0-test_charfield": "Updated string",
-        })
+        post_payload.update(
+            {
+                "form-0-test_charfield": "Updated string",
+            }
+        )
 
         response = self.client.post(url, data=post_payload)
 
