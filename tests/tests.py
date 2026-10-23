@@ -613,16 +613,12 @@ class TestBaseModelViewSetTitleTestCase(TestCase):
         )
 
     def test_list_title_uses_plural_verbose_name(self):
-        response = self.client.get(
-            reverse("testbasemodel-list")
-        )
+        response = self.client.get(reverse("testbasemodel-list"))
 
         self.assertContains(response, "Test Base Models")
 
     def test_create_title_uses_singular_verbose_name(self):
-        response = self.client.get(
-            reverse("testbasemodel-create")
-        )
+        response = self.client.get(reverse("testbasemodel-create"))
 
         self.assertContains(response, "New Test Base Model")
 

@@ -271,7 +271,6 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
     def get_object_title(self):
         return str(self.get_object())
 
-
     def get_title(self):
         if self.view_action in self.list_actions:
             return self.model._meta.verbose_name_plural.title()
