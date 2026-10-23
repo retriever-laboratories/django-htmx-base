@@ -6,7 +6,7 @@
         <meta charset="utf-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
 
-        <title>{% block title %}App{% endblock %}</title>
+        <title>Test App</title>
 
         <!-- CSRF token (for HTMX requests) -->
         <meta name="csrf-token" content="{{ csrf_token }}"/>
@@ -34,7 +34,13 @@
             <input id="my-drawer-1" type="checkbox" class="drawer-toggle" />
             <div class="drawer-content">
                 {% include "partials/navbar.html" with uri_path=uri_path %}
-                <main id="main-content">{% block content %}{% endblock %}</main>
+                <main id="main-content">
+                    {% block title %}
+                        {% include "partials/title.html" %}
+                    {% endblock %}
+
+                    {% block content %}{% endblock %}
+                </main>
             </div>
             
             {% include "partials/sidebar_content.html" %}

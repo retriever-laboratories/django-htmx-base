@@ -604,3 +604,44 @@ class ToastViewSetTestCase(TestCase):
             response,
             "Toast is actually a bread reference",
         )
+
+
+class TestBaseModelViewSetTitleTestCase(TestCase):
+    def setUp(self):
+        self.obj = TestBaseModel.objects.create(
+            test_charfield="doNt Change my cAse",
+        )
+
+    def test_list_title_uses_plural_verbose_name(self):
+        response = self.client.get(
+            reverse("testbasemodel-list")
+        )
+
+        self.assertContains(response, "Test Base Models")
+
+    def test_create_title_uses_singular_verbose_name(self):
+        response = self.client.get(
+            reverse("testbasemodel-create")
+        )
+
+        self.assertContains(response, "New Test Base Model")
+
+    def test_detail_title_uses_object_title(self):
+        response = self.client.get(
+            reverse(
+                "testbasemodel-detail",
+                args=[self.obj.pk],
+            )
+        )
+
+        self.assertContains(response, str(self.obj))
+
+    def test_edit_title_uses_object_title(self):
+        response = self.client.get(
+            reverse(
+                "testbasemodel-edit",
+                args=[self.obj.pk],
+            )
+        )
+
+        self.assertContains(response, f"Edit {self.obj}")
