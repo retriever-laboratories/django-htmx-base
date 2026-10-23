@@ -218,6 +218,12 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
         if "model_name" not in context.keys():
             context["model_name"] = self.get_model_name()
 
+        if "model" not in context.keys():
+            context["model"] = self.get_model()
+
+        if "title" not in context.keys():
+            context["title"] = self.get_title()
+
         return ContextMixin.get_context_data(self, **context)
 
     def get_list_context_data(self, context, queryset=None):
@@ -262,6 +268,30 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
 
         return context
 
+    def get_object_title(self):
+        return str(self.get_object())
+
+    def get_title(self):
+        if self.view_action in self.list_actions:
+            return self.model._meta.verbose_name_plural.title()
+
+        if self.view_action == HtmxAction.CREATE:
+            return f"New {self.model._meta.verbose_name.title()}"
+
+        if self.view_action == HtmxAction.DETAIL:
+            return self.get_object_title()
+
+        if self.view_action in {
+            HtmxAction.EDIT,
+            HtmxAction.CONTINUE,
+        }:
+            return f"Edit {self.get_object_title()}"
+
+        if self.view_action in self.object_actions:
+            return f"{self.view_action.title()} {self.get_object_title()}"
+
+        return self.model._meta.verbose_name.title()
+
     def get_object_context_data(self, context, obj):
         """Set context variables for single object actions."""
         context.update({"object": obj})
@@ -270,6 +300,7 @@ class HtmxViewSet(TemplateResponseMixin, MultipleObjectMixin, ModelFormMixin, Vi
             context[model_name] = obj
             context["model_name"] = model_name
             context["model"] = self.get_model()
+
         return context
 
     def get_template_names(self):
